@@ -10,6 +10,7 @@ import { db } from './firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import Login from './Login';
 
 // Mock functions for readData and writeData to allow the app to run
 const mockData = {
@@ -335,21 +336,15 @@ function App() {
     };
   }, []);
 
-  // Authentication useEffect - Anonymous login ekle
+  // Authentication useEffect - Email/Password login
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        console.log("âœ… User authenticated:", firebaseUser.uid);
+        console.log(" User authenticated:", firebaseUser.uid);
         setUser(firebaseUser);
       } else {
-        console.log("ğŸ”‘ No user, signing in anonymously...");
-        try {
-          const result = await signInAnonymously(auth);
-          console.log("âœ… Anonymous sign-in successful:", result.user.uid);
-          setUser(result.user);
-        } catch (error) {
-          console.error("âŒ Anonymous sign-in failed:", error);
-        }
+        console.log(" No user authenticated");
+        setUser(null);
       }
       setAuthChecked(true);
     });
@@ -502,6 +497,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Login ekranı - kullanıcı giriş yapmamışsa
+  if (!user) {
+    return <Login onLoginSuccess={() => setUser(auth.currentUser)} />;
   }
 
   const showMessage = (msg, type) => {
@@ -3493,3 +3493,13 @@ try {
 } catch (e) { ipcRenderer = null; }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
