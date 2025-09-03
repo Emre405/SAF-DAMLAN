@@ -16,26 +16,42 @@ const Login = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      // Firebase Authentication ile giriş yap
+      if (!navigator.onLine) {
+        const offlineUser = localStorage.getItem('offlineUser');
+        if (offlineUser) {
+          const userData = JSON.parse(offlineUser);
+          if (userData.email === email) {
+            console.log('OFFLINE: Kullanici localStorage dan dogrulandi');
+            onLoginSuccess();
+            return;
+          }
+        }
+        setError('Internet baglantisi yok. Daha once giris yapmis olmaniz gerekiyor.');
+        return;
+      }
+
       await signInWithEmailAndPassword(auth, email, password);
       onLoginSuccess();
     } catch (error) {
-      console.error('Giriş hatası:', error);
+      console.error('Giris hatasi:', error);
       switch (error.code) {
         case 'auth/user-not-found':
-          setError('Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı.');
+          setError('Bu e-posta adresi ile kayitli kullanici bulunamadi.');
           break;
         case 'auth/wrong-password':
-          setError('Hatalı şifre girdiniz.');
+          setError('Hatali sifre girdiniz.');
           break;
         case 'auth/invalid-email':
-          setError('Geçersiz e-posta adresi.');
+          setError('Gecersiz e-posta adresi.');
           break;
         case 'auth/too-many-requests':
-          setError('çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin.');
+          setError('Cok fazla basarisiz deneme. Lutfen daha sonra tekrar deneyin.');
+          break;
+        case 'auth/network-request-failed':
+          setError('Internet baglantisi hatasi. Lutfen baglantinizi kontrol edin.');
           break;
         default:
-          setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
+          setError('Giris yapilirken bir hata olustu. Lutfen tekrar deneyin.');
       }
     } finally {
       setIsLoading(false);
@@ -45,23 +61,21 @@ const Login = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        {/* Logo ve Başlık */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full mb-4 shadow-lg">
             <Droplet className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">SAF DAMLA</h1>
-          <p className="text-gray-600">Zeytinyağı Fabrikası Yönetim Sistemi</p>
+          <p className="text-gray-600">Zeytinyagi Fabrikasi Yonetim Sistemi</p>
         </div>
 
-        {/* Giriş Formu */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-              Sisteme Giriş
+              Sisteme Giris
             </h2>
             <p className="text-gray-600">
-              Yönetim paneline erişmek için giriş bilgilerinizi girin
+              Yonetim paneline erismek icin giris bilgilerinizi girin
             </p>
           </div>
 
@@ -73,7 +87,6 @@ const Login = ({ onLoginSuccess }) => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* E-posta Input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 E-posta Adresi
@@ -94,10 +107,9 @@ const Login = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Şifre Input */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Şifre
+                Sifre
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -110,7 +122,7 @@ const Login = ({ onLoginSuccess }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  placeholder="Şifrenizi girin"
+                  placeholder="Sifrenizi girin"
                 />
                 <button
                   type="button"
@@ -118,15 +130,14 @@ const Login = ({ onLoginSuccess }) => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Giriş Butonu */}
             <button
               type="submit"
               disabled={isLoading}
@@ -135,26 +146,25 @@ const Login = ({ onLoginSuccess }) => {
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Giriş Yapılıyor...
+                  Giris Yapiliyor...
                 </>
               ) : (
                 <>
                   <Factory className="w-5 h-5 mr-2" />
-                  Sisteme Giriş Yap
+                  Sisteme Giris Yap
                 </>
               )}
             </button>
           </form>
         </div>
 
-        {/* Alt Bilgi */}
         <div className="text-center mt-8 text-gray-500 text-sm">
-          <p> 2025 SAF DAMLA Zeytinyağı Fabrikası</p>
-          <p className="mt-1">Güvenli ve güvenilir yönetim sistemi</p>
+          <p>© 2024 SAF DAMLA Zeytinyagi Fabrikasi</p>
+          <p className="mt-1">Guvenli ve guvenilir yonetim sistemi</p>
         </div>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default Login; 

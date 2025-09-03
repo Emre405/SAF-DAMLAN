@@ -65,8 +65,10 @@ const readData = async (userId) => {
         // Firestore hatası durumunda localStorage'a fallback
         const savedData = localStorage.getItem('safDamlaData');
         if (savedData) {
+            console.log(" Using localStorage data due to Firestore error");
             return JSON.parse(savedData);
         }
+        console.log("📱 Using mock data due to error");
         return mockData;
     }
 };
@@ -91,28 +93,25 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
         console.error("❌ Error writing data to Firestore:", error);
         if (setSyncStatusCallback) setSyncStatusCallback('offline');
         // Firestore hatası durumunda localStorage'a fallback
+        console.log("📱 Saving to localStorage due to Firestore error");
         localStorage.setItem('safDamlaData', JSON.stringify(data));
+        
+        // Çevrimdışı veriyi işaretle
+        const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
+        offlineData.push({
+            timestamp: new Date().toISOString(),
+            userId: userId,
+            data: data
+        });
+        localStorage.setItem('offlineData', JSON.stringify(offlineData));
     }
 };
 
-
 // Helper function for number formatting
 const formatNumber = (value, unit = '') => {
-  const number = Number(value);
-
-  if (isNaN(number) || value === '' || value === null) {
-      const emptyValue = unit === '₺' ? '0 ₺' : '0';
-      return unit ? emptyValue : '0';
-  }
-
-  const formatted = new Intl.NumberFormat('tr-TR', {
-      maximumFractionDigits: 2
-  }).format(number);
-
-  return unit ? `${formatted} ${unit}` : formatted;
+    if (value === null || value === undefined || isNaN(value)) return '0' + unit;
+    return new Intl.NumberFormat('tr-TR').format(value) + unit;
 };
-
-
 
 // Helper function for oil ratio formatting
 const formatOilRatioDisplay = (oliveKg, oilLitre) => {
@@ -265,9 +264,8 @@ function App() {
   const [pomaceRevenues, setPomaceRevenues] = useState([]);
   const [tinPurchases, setTinPurchases] = useState([]);
   const [plasticPurchases, setPlasticPurchases] = useState([]); // New state for plastic jug purchases
-  const [oilPurchases, setOilPurchases] = useState([]); // Zeytinyağı alımları için boş bir dizi
-  const [oilSales, setOilSales] = useState([]); // Zeytinyağı satışları için boş bir dizi
-
+  const [oilPurchases, setOilPurchases] = useState([]);
+  const [oilSales, setOilSales] = useState([]);
   const [defaultPrices, setDefaultPrices] = useState({
     pricePerKg: 3,
     tinPrices: { s16: 80, s10: 70, s5: 60 },
@@ -276,17 +274,31 @@ function App() {
     oilSalePrice: 250
   });
 
-  // Offline persistence'ı etkinleştir
-  useEffect(() => {
-    const initOfflineSupport = async () => {
-      const enabled = await enableOfflineSupport();
-      setOfflinePersistenceEnabled(enabled);
-    };
+  // Çevrimdışı veri senkronizasyonu
+  const syncPendingData = async () => {
+    if (!user?.uid || !isOnline) return;
     
-    initOfflineSupport();
-  }, []);
+    try {
+      const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
+      if (offlineData.length === 0) return;
+      
+      console.log("🔄 Syncing offline data:", offlineData.length, "items");
+      
+      for (const item of offlineData) {
+        if (item.userId === user.uid) {
+          await writeData(item.data, user.uid, setSyncStatus);
+        }
+      }
+      
+      // Senkronize edilen verileri temizle
+      localStorage.removeItem('offlineData');
+      console.log("✅ Offline data synced successfully");
+    } catch (error) {
+      console.error("❌ Error syncing offline data:", error);
+    }
+  };
 
-  // Network durumunu dinle - Basit ve güvenilir
+  // Network durumunu dinle - Geliştirilmiş versiyon
   useEffect(() => {
     // İlk durumu kontrol et
     const initialStatus = navigator.onLine;
@@ -315,18 +327,43 @@ function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Agresif periyodik kontrol
-    const interval = setInterval(() => {
-      const currentStatus = navigator.onLine;
-      setIsOnline(prevIsOnline => {
-        if (currentStatus !== prevIsOnline) {
-          console.log("🔄 Periyodik kontrol - Network değişti:", currentStatus ? "ONLINE" : "OFFLINE");
-          setSyncStatus(currentStatus ? 'synced' : 'offline');
-          return currentStatus;
-        }
-        return prevIsOnline;
-      });
-    }, 500); // 500ms'de bir kontrol et - daha agresif
+    // Daha güvenilir network kontrolü - fetch kullanarak
+    const checkNetworkStatus = async () => {
+      try {
+        // Küçük bir istek göndererek gerçek network durumunu kontrol et
+        const response = await fetch('https://www.google.com/favicon.ico', {
+          method: 'HEAD',
+          mode: 'no-cors',
+          cache: 'no-cache'
+        });
+        const currentStatus = true;
+        setIsOnline(prevIsOnline => {
+          if (currentStatus !== prevIsOnline) {
+            console.log("🔄 Fetch kontrolü - Network değişti:", currentStatus ? "ONLINE" : "OFFLINE");
+            setSyncStatus(currentStatus ? 'synced' : 'offline');
+            if (currentStatus) {
+              setTimeout(() => syncPendingData(), 1000);
+            }
+            return currentStatus;
+          }
+          return prevIsOnline;
+        });
+      } catch (error) {
+        // Fetch başarısız olursa offline
+        const currentStatus = false;
+        setIsOnline(prevIsOnline => {
+          if (currentStatus !== prevIsOnline) {
+            console.log("🔄 Fetch kontrolü - Network OFFLINE");
+            setSyncStatus('offline');
+            return currentStatus;
+          }
+          return prevIsOnline;
+        });
+      }
+    };
+    
+    // Periyodik kontrol
+    const interval = setInterval(checkNetworkStatus, 3000); // 3 saniyede bir kontrol et
     
     // Cleanup
     return () => {
@@ -334,6 +371,22 @@ function App() {
       window.removeEventListener('offline', handleOffline);
       clearInterval(interval);
     };
+  }, [user?.uid]);
+
+  // Offline persistence'ı etkinleştir - Basitleştirilmiş
+  useEffect(() => {
+    const initOfflineSupport = async () => {
+      try {
+        const enabled = await enableOfflineSupport();
+        setOfflinePersistenceEnabled(enabled);
+        console.log("📱 Offline support enabled:", enabled);
+      } catch (error) {
+        console.error("❌ Failed to enable offline support:", error);
+        setOfflinePersistenceEnabled(false);
+      }
+    };
+    
+    initOfflineSupport();
   }, []);
 
   // Authentication useEffect - Email/Password login
@@ -499,7 +552,7 @@ function App() {
     );
   }
 
-  // Login ekran� - kullan�c� giri� yapmam��sa
+  // Login ekran� - kullan�c� giri� yapmam��sa
   if (!user) {
     return <Login onLoginSuccess={() => setUser(auth.currentUser)} />;
   }
@@ -511,40 +564,6 @@ function App() {
       setMessage('');
       setMessageType('');
     }, 3000);
-  };
-
-  // Offline verileri senkronize et
-  const syncPendingData = async () => {
-    if (pendingSync.length === 0 || !isOnline) return;
-    
-    const syncCount = pendingSync.length;
-    console.log("🔄 Syncing pending offline data...", syncCount, "items");
-    setSyncStatus('syncing');
-    
-    try {
-      for (const pendingItem of pendingSync) {
-        if (pendingItem.type === 'transaction') {
-          // Transaction için özel işlem
-          await writeData(pendingItem.data, user?.uid, null);
-        } else {
-          // Diğer tiplerden (worker, overhead, etc.) için normal save
-          const currentData = await readData(user?.uid);
-          const updatedData = { ...currentData, ...pendingItem.data };
-          await writeData(updatedData, user?.uid, null);
-        }
-        console.log("✅ Synced:", pendingItem.type, "from", pendingItem.timestamp);
-      }
-      
-      setPendingSync([]); // Kuyruğu temizle
-      setSyncStatus('synced');
-      showMessage(`✅ ${syncCount} offline kayıt senkronize edildi!`, 'success');
-      console.log("✅ All pending data synced successfully");
-      
-    } catch (error) {
-      console.error("❌ Error syncing pending data:", error);
-      setSyncStatus('offline');
-      showMessage('❌ Offline veriler senkronize edilemedi', 'error');
-    }
   };
 
   const navigateTo = (page, data = null) => {
