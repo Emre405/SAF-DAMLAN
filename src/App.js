@@ -47,13 +47,13 @@ const readData = async (userId) => {
             console.log("Data found in Firestore");
             const firestoreData = docSnap.data();
             
-            // localStorage'daki verilerle birleştir - SADECE YENİ VERİLER
+            // localStorage'daki verilerle birleştir - TÜM VERİLER
             const localData = localStorage.getItem('safDamlaData');
             if (localData) {
                 const parsedLocalData = JSON.parse(localData);
                 console.log("🔄 Merging localStorage data with Firestore data");
                 
-                // Her veri tipi için merge işlemi - SADECE YENİ VERİLER
+                // Her veri tipi için merge işlemi - TÜM VERİLER
                 const mergedData = {
                     ...firestoreData,
                     customers: [...(firestoreData.customers || [])],
@@ -68,20 +68,99 @@ const readData = async (userId) => {
                     defaultPrices: firestoreData.defaultPrices || mockData.defaultPrices
                 };
                 
-                // localStorage'daki yeni verileri ekle
+                // localStorage'daki TÜM verileri ekle (duplicate kontrolü ile)
                 if (parsedLocalData.customers) {
-                    const newCustomers = parsedLocalData.customers.filter(localCustomer => 
-                        !mergedData.customers.some(fsCustomer => fsCustomer.id === localCustomer.id)
-                    );
-                    mergedData.customers = [...mergedData.customers, ...newCustomers];
+                    const allCustomers = [...mergedData.customers];
+                    parsedLocalData.customers.forEach(localCustomer => {
+                        if (!allCustomers.some(fsCustomer => fsCustomer.id === localCustomer.id)) {
+                            allCustomers.push(localCustomer);
+                        }
+                    });
+                    mergedData.customers = allCustomers;
                 }
                 
                 if (parsedLocalData.transactions) {
-                    const newTransactions = parsedLocalData.transactions.filter(localTransaction => 
-                        !mergedData.transactions.some(fsTransaction => fsTransaction.id === localTransaction.id)
-                    );
-                    mergedData.transactions = [...mergedData.transactions, ...newTransactions];
+                    const allTransactions = [...mergedData.transactions];
+                    parsedLocalData.transactions.forEach(localTransaction => {
+                        if (!allTransactions.some(fsTransaction => fsTransaction.id === localTransaction.id)) {
+                            allTransactions.push(localTransaction);
+                        }
+                    });
+                    mergedData.transactions = allTransactions;
                 }
+                
+                if (parsedLocalData.workerExpenses) {
+                    const allWorkerExpenses = [...mergedData.workerExpenses];
+                    parsedLocalData.workerExpenses.forEach(localExpense => {
+                        if (!allWorkerExpenses.some(fsExpense => fsExpense.id === localExpense.id)) {
+                            allWorkerExpenses.push(localExpense);
+                        }
+                    });
+                    mergedData.workerExpenses = allWorkerExpenses;
+                }
+                
+                if (parsedLocalData.factoryOverhead) {
+                    const allFactoryOverhead = [...mergedData.factoryOverhead];
+                    parsedLocalData.factoryOverhead.forEach(localOverhead => {
+                        if (!allFactoryOverhead.some(fsOverhead => fsOverhead.id === localOverhead.id)) {
+                            allFactoryOverhead.push(localOverhead);
+                        }
+                    });
+                    mergedData.factoryOverhead = allFactoryOverhead;
+                }
+                
+                if (parsedLocalData.pomaceRevenues) {
+                    const allPomaceRevenues = [...mergedData.pomaceRevenues];
+                    parsedLocalData.pomaceRevenues.forEach(localRevenue => {
+                        if (!allPomaceRevenues.some(fsRevenue => fsRevenue.id === localRevenue.id)) {
+                            allPomaceRevenues.push(localRevenue);
+                        }
+                    });
+                    mergedData.pomaceRevenues = allPomaceRevenues;
+                }
+                
+                if (parsedLocalData.tinPurchases) {
+                    const allTinPurchases = [...mergedData.tinPurchases];
+                    parsedLocalData.tinPurchases.forEach(localPurchase => {
+                        if (!allTinPurchases.some(fsPurchase => fsPurchase.id === localPurchase.id)) {
+                            allTinPurchases.push(localPurchase);
+                        }
+                    });
+                    mergedData.tinPurchases = allTinPurchases;
+                }
+                
+                if (parsedLocalData.plasticPurchases) {
+                    const allPlasticPurchases = [...mergedData.plasticPurchases];
+                    parsedLocalData.plasticPurchases.forEach(localPurchase => {
+                        if (!allPlasticPurchases.some(fsPurchase => fsPurchase.id === localPurchase.id)) {
+                            allPlasticPurchases.push(localPurchase);
+                        }
+                    });
+                    mergedData.plasticPurchases = allPlasticPurchases;
+                }
+                
+                if (parsedLocalData.oilPurchases) {
+                    const allOilPurchases = [...mergedData.oilPurchases];
+                    parsedLocalData.oilPurchases.forEach(localPurchase => {
+                        if (!allOilPurchases.some(fsPurchase => fsPurchase.id === localPurchase.id)) {
+                            allOilPurchases.push(localPurchase);
+                        }
+                    });
+                    mergedData.oilPurchases = allOilPurchases;
+                }
+                
+                if (parsedLocalData.oilSales) {
+                    const allOilSales = [...mergedData.oilSales];
+                    parsedLocalData.oilSales.forEach(localSale => {
+                        if (!allOilSales.some(fsSale => fsSale.id === localSale.id)) {
+                            allOilSales.push(localSale);
+                        }
+                    });
+                    mergedData.oilSales = allOilSales;
+                }
+                
+                // Birleştirilmiş veriyi localStorage'a kaydet
+                localStorage.setItem('safDamlaData', JSON.stringify(mergedData));
                 
                 return mergedData;
             }
