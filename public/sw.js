@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saf-damla-v3';
+const CACHE_NAME = 'saf-damla-v4';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
@@ -41,8 +41,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API istekleri için network-first stratejisi
-  if (event.request.url.includes('/api/') || event.request.url.includes('firestore.googleapis.com')) {
+  // Firestore API istekleri için özel strateji
+  if (event.request.url.includes('firestore.googleapis.com')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -63,23 +63,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML sayfaları için network-first stratejisi
+  // HTML sayfaları için cache-first stratejisi (çevrimdışı çalışma için)
   if (event.request.destination === 'document') {
     event.respondWith(
-      fetch(event.request)
+      caches.match(event.request)
         .then((response) => {
-          // Network'ten başarılı yanıt alındıysa cache'e kaydet
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+          if (response) {
+            // Cache'de varsa önce cache'den döndür
+            return response;
           }
-          return response;
-        })
-        .catch(() => {
-          // Network hatası durumunda cache'den döndür
-          return caches.match(event.request);
+          // Cache'de yoksa network'ten al
+          return fetch(event.request)
+            .then((response) => {
+              // Network'ten başarılı yanıt alındıysa cache'e kaydet
+              if (response.status === 200) {
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, responseClone);
+                });
+              }
+              return response;
+            });
         })
     );
     return;

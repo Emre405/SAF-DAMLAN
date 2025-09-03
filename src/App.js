@@ -197,15 +197,16 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
         return;
     }
 
+    // ÖNCE localStorage'a kaydet - her durumda
+    console.log("📱 Saving to localStorage first");
+    localStorage.setItem('safDamlaData', JSON.stringify(data));
+
     try {
         if (setSyncStatusCallback) setSyncStatusCallback('syncing');
         console.log("💾 Writing data to Firestore for user:", userId);
         const docRef = doc(db, 'userData', userId);
         await setDoc(docRef, data, { merge: true });
         console.log("✅ Data successfully written to Firestore");
-        
-        // Başarılı yazma sonrası localStorage'ı da güncelle
-        localStorage.setItem('safDamlaData', JSON.stringify(data));
         
         if (setSyncStatusCallback) {
             setTimeout(() => setSyncStatusCallback('synced'), 1000);
@@ -214,11 +215,7 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
         console.error("❌ Error writing data to Firestore:", error);
         if (setSyncStatusCallback) setSyncStatusCallback('offline');
         
-        // Firestore hatası durumunda localStorage'a kaydet
-        console.log("📱 Saving to localStorage due to Firestore error");
-        localStorage.setItem('safDamlaData', JSON.stringify(data));
-        
-        // Çevrimdışı veriyi işaretle
+        // Çevrimdışı veriyi işaretle - senkronizasyon için
         const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
         offlineData.push({
             timestamp: new Date().toISOString(),
@@ -226,6 +223,7 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
             data: data
         });
         localStorage.setItem('offlineData', JSON.stringify(offlineData));
+        console.log("📱 Offline data marked for sync");
     }
 };
 
