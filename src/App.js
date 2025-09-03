@@ -45,16 +45,54 @@ const readData = async (userId) => {
         
         if (docSnap.exists()) {
             console.log("Data found in Firestore");
-            return docSnap.data();
+            const firestoreData = docSnap.data();
+            
+            // localStorage'daki verilerle birleştir - SADECE YENİ VERİLER
+            const localData = localStorage.getItem('safDamlaData');
+            if (localData) {
+                const parsedLocalData = JSON.parse(localData);
+                console.log("🔄 Merging localStorage data with Firestore data");
+                
+                // Her veri tipi için merge işlemi - SADECE YENİ VERİLER
+                const mergedData = {
+                    ...firestoreData,
+                    customers: [...(firestoreData.customers || [])],
+                    transactions: [...(firestoreData.transactions || [])],
+                    workerExpenses: [...(firestoreData.workerExpenses || [])],
+                    factoryOverhead: [...(firestoreData.factoryOverhead || [])],
+                    pomaceRevenues: [...(firestoreData.pomaceRevenues || [])],
+                    tinPurchases: [...(firestoreData.tinPurchases || [])],
+                    plasticPurchases: [...(firestoreData.plasticPurchases || [])],
+                    oilPurchases: [...(firestoreData.oilPurchases || [])],
+                    oilSales: [...(firestoreData.oilSales || [])],
+                    defaultPrices: firestoreData.defaultPrices || mockData.defaultPrices
+                };
+                
+                // localStorage'daki yeni verileri ekle
+                if (parsedLocalData.customers) {
+                    const newCustomers = parsedLocalData.customers.filter(localCustomer => 
+                        !mergedData.customers.some(fsCustomer => fsCustomer.id === localCustomer.id)
+                    );
+                    mergedData.customers = [...mergedData.customers, ...newCustomers];
+                }
+                
+                if (parsedLocalData.transactions) {
+                    const newTransactions = parsedLocalData.transactions.filter(localTransaction => 
+                        !mergedData.transactions.some(fsTransaction => fsTransaction.id === localTransaction.id)
+                    );
+                    mergedData.transactions = [...mergedData.transactions, ...newTransactions];
+                }
+                
+                return mergedData;
+            }
+            
+            return firestoreData;
         } else {
-            console.log("No data in Firestore, checking localStorage for migration");
+            console.log("No data in Firestore, checking localStorage");
             const savedData = localStorage.getItem('safDamlaData');
             if (savedData) {
                 const localData = JSON.parse(savedData);
-                console.log("Migrating localStorage data to Firestore");
-                await writeData(localData, userId, null); // Migration'da sync status güncellemesi yok
-                // Veriyi taşıdıktan sonra localStorage'ı temizle
-                localStorage.removeItem('safDamlaData');
+                console.log(" Using localStorage data");
                 return localData;
             }
             console.log("No data found, returning mock data");
@@ -84,15 +122,20 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
         if (setSyncStatusCallback) setSyncStatusCallback('syncing');
         console.log("💾 Writing data to Firestore for user:", userId);
         const docRef = doc(db, 'userData', userId);
-        await setDoc(docRef, data, { merge: true }); // merge: true ile sadece değişen alanları güncelle
+        await setDoc(docRef, data, { merge: true });
         console.log("✅ Data successfully written to Firestore");
+        
+        // Başarılı yazma sonrası localStorage'ı da güncelle
+        localStorage.setItem('safDamlaData', JSON.stringify(data));
+        
         if (setSyncStatusCallback) {
             setTimeout(() => setSyncStatusCallback('synced'), 1000);
         }
     } catch (error) {
         console.error("❌ Error writing data to Firestore:", error);
         if (setSyncStatusCallback) setSyncStatusCallback('offline');
-        // Firestore hatası durumunda localStorage'a fallback
+        
+        // Firestore hatası durumunda localStorage'a kaydet
         console.log("📱 Saving to localStorage due to Firestore error");
         localStorage.setItem('safDamlaData', JSON.stringify(data));
         
@@ -274,29 +317,59 @@ function App() {
     oilSalePrice: 250
   });
 
-  // Çevrimdışı veri senkronizasyonu
+  // Çevrimdışı veri senkronizasyonu - Geliştirilmiş
   const syncPendingData = async () => {
     if (!user?.uid || !isOnline) return;
     
     try {
-      const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
-      if (offlineData.length === 0) return;
-      
-      console.log("🔄 Syncing offline data:", offlineData.length, "items");
-      
-      for (const item of offlineData) {
-        if (item.userId === user.uid) {
-          await writeData(item.data, user.uid, setSyncStatus);
+        const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
+        if (offlineData.length === 0) return;
+        
+        console.log("🔄 Syncing offline data:", offlineData.length, "items");
+        
+        // Mevcut Firestore verisini oku
+        const currentData = await readData(user.uid);
+        
+        for (const item of offlineData) {
+            if (item.userId === user.uid) {
+                // Verileri merge et
+                const mergedData = {
+                    ...currentData,
+                    ...item.data,
+                    customers: [...(currentData.customers || []), ...(item.data.customers || [])],
+                    transactions: [...(currentData.transactions || []), ...(item.data.transactions || [])],
+                    workerExpenses: [...(currentData.workerExpenses || []), ...(item.data.workerExpenses || [])],
+                    factoryOverhead: [...(currentData.factoryOverhead || []), ...(item.data.factoryOverhead || [])],
+                    pomaceRevenues: [...(currentData.pomaceRevenues || []), ...(item.data.pomaceRevenues || [])],
+                    tinPurchases: [...(currentData.tinPurchases || []), ...(item.data.tinPurchases || [])],
+                    plasticPurchases: [...(currentData.plasticPurchases || []), ...(item.data.plasticPurchases || [])],
+                    oilPurchases: [...(currentData.oilPurchases || []), ...(item.data.oilPurchases || [])],
+                    oilSales: [...(currentData.oilSales || []), ...(item.data.oilSales || [])]
+                };
+                
+                // Duplicate'ları temizle
+                mergedData.customers = mergedData.customers.filter((item, index, self) => 
+                    index === self.findIndex(t => t.id === item.id)
+                );
+                mergedData.transactions = mergedData.transactions.filter((item, index, self) => 
+                    index === self.findIndex(t => t.id === item.id)
+                );
+                
+                await writeData(mergedData, user.uid, setSyncStatus);
+            }
         }
-      }
-      
-      // Senkronize edilen verileri temizle
-      localStorage.removeItem('offlineData');
-      console.log("✅ Offline data synced successfully");
+        
+        // Senkronize edilen verileri temizle
+        localStorage.removeItem('offlineData');
+        console.log("✅ Offline data synced successfully");
+        
+        // Sayfayı yenile
+        window.location.reload();
+        
     } catch (error) {
-      console.error("❌ Error syncing offline data:", error);
+        console.error("❌ Error syncing offline data:", error);
     }
-  };
+};
 
   // Network durumunu dinle - Geliştirilmiş versiyon
   useEffect(() => {

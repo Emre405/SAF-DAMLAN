@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saf-damla-v1';
+const CACHE_NAME = 'saf-damla-v2';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
@@ -14,24 +14,88 @@ self.addEventListener('install', (event) => {
         return cache.addAll(urlsToCache);
       })
   );
+  // Hemen aktif ol
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  // Hemen kontrol et
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
+  // Sadece GET istekleri için cache stratejisi uygula
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // API istekleri için network-first stratejisi
+  if (event.request.url.includes('/api/') || event.request.url.includes('firestore.googleapis.com')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          // Network hatası durumunda cache'den döndür
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // HTML sayfaları için network-first stratejisi
+  if (event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Başarılı response'u cache'e kaydet
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return response;
+        })
+        .catch(() => {
+          // Network hatası durumunda cache'den döndür
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Diğer kaynaklar için cache-first stratejisi
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Cache'de varsa cache'den döndür
         if (response) {
           return response;
         }
         
-        // Cache'de yoksa network'ten al
-        return fetch(event.request).catch(() => {
-          // Network hatası durumunda offline sayfa döndür
-          if (event.request.destination === 'document') {
-            return caches.match('/');
-          }
-        });
+        return fetch(event.request)
+          .then((response) => {
+            // Başarılı response'u cache'e kaydet
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+            return response;
+          })
+          .catch(() => {
+            // Network hatası durumunda offline sayfa döndür
+            if (event.request.destination === 'document') {
+              return caches.match('/');
+            }
+          });
       })
   );
 }); 
