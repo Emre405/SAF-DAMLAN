@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { List, Info, Droplet, Percent, DollarSign, Package, Trash2, Edit } from 'lucide-react';
+import { List, Info, Droplet, Percent, DollarSign, Package, Trash2, Edit, Share2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import SummaryCard from '../components/SummaryCard';
@@ -182,6 +182,40 @@ const CustomerDetails = ({
   const totalPlasticCount = transactions.reduce((sum, t) => sum + (Number(t.plasticCounts?.s10) || 0) + (Number(t.plasticCounts?.s5) || 0) + (Number(t.plasticCounts?.s2) || 0), 0);
   const avgOilRatioDisplay = formatOilRatioDisplay(totalOliveProcessed, totalOilProduced);
 
+  const handleShareWhatsApp = () => {
+    if (!customer) return;
+
+    let text = `*SAF DAMLA ZEYTİNYAĞI FABRİKASI*\n`;
+    text += `*Müşteri Raporu:* ${customer.name}\n`;
+    text += `*Tarih:* ${new Date().toLocaleDateString('tr-TR')}\n`;
+    text += `----------------------------------\n`;
+    text += `*ÖZET BİLGİLER*\n`;
+    text += `• Toplam İşlem: ${transactions.length}\n`;
+    text += `• İşlenen Zeytin: ${formatNumber(totalOliveProcessed, ' kg')}\n`;
+    text += `• Üretilen Yağ: ${formatNumber(totalOilProduced, ' L')}\n`;
+    text += `• Ortalama Yağ Oranı: ${avgOilRatioDisplay}\n`;
+    text += `• Toplam Ücret: ${formatNumber(totalBilledAmount, ' ₺')}\n`;
+    text += `• Alınan Ödeme: ${formatNumber(totalPaymentReceived, ' ₺')}\n`;
+    text += `• Ödeme Firesi: ${formatNumber(totalPaymentLoss, ' ₺')}\n`;
+    text += `• *Kalan Bakiye: ${formatNumber(remainingBalance, ' ₺')}*\n`;
+    text += `• Kullanılan Kaplar: Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}\n`;
+    text += `----------------------------------\n`;
+    
+    if (transactions.length > 0) {
+      text += `*İŞLEM GEÇMİŞİ*\n`;
+      transactions.forEach(t => {
+        const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
+        const desc = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+        text += `\n• *${new Date(t.date).toLocaleDateString('tr-TR')}*\n`;
+        text += `  Detay: ${desc}\n`;
+        text += `  Tutar: ${formatNumber(t.totalCost, ' ₺')} | Alınan: ${formatNumber(t.paymentReceived, ' ₺')} | Bakiye: ${formatNumber(bakiye, ' ₺')}\n`;
+      });
+    }
+
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Üst Alan */}
@@ -190,6 +224,10 @@ const CustomerDetails = ({
         <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           <button onClick={onBack} className="flex-1 lg:flex-none px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold min-h-[40px] text-sm">Geri Dön</button>
           <button onClick={handleDownloadPDF} className="flex-1 lg:flex-none px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-sm min-h-[40px] text-sm transition-colors">PDF İndir</button>
+          <button onClick={handleShareWhatsApp} className="flex-1 lg:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm min-h-[40px] text-sm transition-colors flex items-center justify-center">
+            <Share2 className="w-4 h-4 mr-2" />
+            <span>WhatsApp Paylaş</span>
+          </button>
           <button onClick={handlePrint} className="flex-1 lg:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm min-h-[40px] text-sm transition-colors">Yazdır</button>
           <button 
             onClick={() => onDeleteCustomer(customer.id, customer.name)} 

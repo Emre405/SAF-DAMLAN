@@ -235,6 +235,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [customerDetailsBackPage, setCustomerDetailsBackPage] = useState('records');
   const [customers, setCustomers] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -471,6 +472,9 @@ function App() {
   };
 
   const navigateTo = (page, data = null) => {
+    if (page === 'customerDetails') {
+      setCustomerDetailsBackPage(currentPage);
+    }
     setCurrentPage(page);
     if (page === 'customerDetails') {
       setSelectedCustomer(data);
@@ -1052,7 +1056,7 @@ function App() {
           <CustomerDetails 
             customer={selectedCustomer} 
             transactions={transactions.filter(t => t.customerId === selectedCustomer.id)}
-            onBack={() => navigateTo('records')} 
+            onBack={() => navigateTo(customerDetailsBackPage)} 
             onEditTransaction={handleOpenNewTransactionModal}
             onDeleteTransaction={(id) => handleDeleteItem('transactions', id)}
             onDeleteCustomer={handleDeleteSingleCustomer}

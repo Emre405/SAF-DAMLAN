@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saf-damla-v6';
+const CACHE_NAME = 'saf-damla-v7';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
