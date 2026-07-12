@@ -50,7 +50,6 @@ const readData = async (userId) => {
     }
 
     const userLocalKey = `safDamlaData_${userId}`;
-    const oldGlobalKey = 'safDamlaData';
 
     try {
         console.log("Reading data from Firestore for user:", userId);
@@ -184,17 +183,6 @@ const readData = async (userId) => {
             const savedData = localStorage.getItem(userLocalKey);
             if (savedData) {
                 return JSON.parse(savedData);
-            }
-            
-            // Safe migration path: If no user-specific key exists, but old global key has data,
-            // we migrate it ONLY if it hasn't been claimed by another user yet.
-            const owner = localStorage.getItem('safDamlaData_owner');
-            const oldGlobalData = localStorage.getItem(oldGlobalKey);
-            if (oldGlobalData && (!owner || owner === userId)) {
-                console.log("Migrating old global localStorage data to user:", userId);
-                localStorage.setItem(userLocalKey, oldGlobalData);
-                localStorage.setItem('safDamlaData_owner', userId);
-                return JSON.parse(oldGlobalData);
             }
             
             return mockData;
