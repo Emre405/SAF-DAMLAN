@@ -29,6 +29,10 @@ const Records = ({
       remainingBalance: totalCustomerBilled - totalCustomerPaid - totalCustomerLoss, 
       transactions: customerTransactions.sort((a, b) => new Date(b.date) - new Date(a.date)) 
     };
+  }).sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(Number(a.id) || 0);
+    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(Number(b.id) || 0);
+    return dateB - dateA;
   });
 
   const filteredCustomers = customerSummary.filter(customer => {
