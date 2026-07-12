@@ -49,6 +49,9 @@ const readData = async (userId) => {
         return mockData;
     }
 
+    const userLocalKey = `safDamlaData_${userId}`;
+    const oldGlobalKey = 'safDamlaData';
+
     try {
         console.log("Reading data from Firestore for user:", userId);
         const docRef = doc(db, 'userData', userId);
@@ -58,10 +61,10 @@ const readData = async (userId) => {
             console.log("Data found in Firestore");
             const firestoreData = docSnap.data();
             
-            const localData = localStorage.getItem('safDamlaData');
+            const localData = localStorage.getItem(userLocalKey);
             if (localData) {
                 const parsedLocalData = JSON.parse(localData);
-                console.log("🔄 Merging localStorage data with Firestore data");
+                console.log("🔄 Merging user-specific localStorage data with Firestore data");
                 
                 const mergedData = {
                     ...firestoreData,
@@ -167,22 +170,38 @@ const readData = async (userId) => {
                     mergedData.oilSales = allOilSales;
                 }
                 
-                localStorage.setItem('safDamlaData', JSON.stringify(mergedData));
+                localStorage.setItem(userLocalKey, JSON.stringify(mergedData));
                 return mergedData;
             }
             
+            // If user local key doesn't exist yet, we save firestore data into it
+            localStorage.setItem(userLocalKey, JSON.stringify(firestoreData));
             return firestoreData;
         } else {
-            console.log("No data in Firestore, checking localStorage");
-            const savedData = localStorage.getItem('safDamlaData');
+            console.log("No data in Firestore for user:", userId);
+            
+            // Try user-specific local storage first
+            const savedData = localStorage.getItem(userLocalKey);
             if (savedData) {
                 return JSON.parse(savedData);
             }
+            
+            // Safe migration path: If no user-specific key exists, but old global key has data,
+            // we migrate it ONLY if it hasn't been claimed by another user yet.
+            const owner = localStorage.getItem('safDamlaData_owner');
+            const oldGlobalData = localStorage.getItem(oldGlobalKey);
+            if (oldGlobalData && (!owner || owner === userId)) {
+                console.log("Migrating old global localStorage data to user:", userId);
+                localStorage.setItem(userLocalKey, oldGlobalData);
+                localStorage.setItem('safDamlaData_owner', userId);
+                return JSON.parse(oldGlobalData);
+            }
+            
             return mockData;
         }
     } catch (error) {
         console.error("Error reading data from Firestore:", error);
-        const savedData = localStorage.getItem('safDamlaData');
+        const savedData = localStorage.getItem(userLocalKey);
         if (savedData) {
             return JSON.parse(savedData);
         }
@@ -192,11 +211,16 @@ const readData = async (userId) => {
 
 const writeData = async (data, userId, setSyncStatusCallback) => {
     if (!userId) {
-        localStorage.setItem('safDamlaData', JSON.stringify(data));
+        localStorage.setItem('safDamlaData_guest', JSON.stringify(data));
         return;
     }
 
-    localStorage.setItem('safDamlaData', JSON.stringify(data));
+    const userLocalKey = `safDamlaData_${userId}`;
+    localStorage.setItem(userLocalKey, JSON.stringify(data));
+    
+    if (!localStorage.getItem('safDamlaData_owner')) {
+        localStorage.setItem('safDamlaData_owner', userId);
+    }
 
     try {
         if (setSyncStatusCallback) setSyncStatusCallback('syncing');
