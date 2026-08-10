@@ -265,26 +265,20 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
           {/* Tenekeler */}
           <div className="border-t pt-4">
             <h3 className="text-lg font-semibold text-emerald-800 mb-2">Tenekeler</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField label="16'lık Sayısı" id="t16" type="number" inputMode="numeric" value={formData.tinCounts.s16} onChange={e => handleContainerChange('tinCounts', 's16', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
               <FormField label="10'luk Sayısı" id="t10" type="number" inputMode="numeric" value={formData.tinCounts.s10} onChange={e => handleContainerChange('tinCounts', 's10', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
               <FormField label="5'lik Sayısı" id="t5" type="number" inputMode="numeric" value={formData.tinCounts.s5} onChange={e => handleContainerChange('tinCounts', 's5', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="16'lık Fiyatı (₺)" id="tp16" type="number" inputMode="decimal" value={formData.tinPrices.s16} onChange={e => handleContainerChange('tinPrices', 's16', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="10'luk Fiyatı (₺)" id="tp10" type="number" inputMode="decimal" value={formData.tinPrices.s10} onChange={e => handleContainerChange('tinPrices', 's10', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="5'lik Fiyatı (₺)" id="tp5" type="number" inputMode="decimal" value={formData.tinPrices.s5} onChange={e => handleContainerChange('tinPrices', 's5', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
             </div>
           </div>
 
           {/* Bidonlar */}
           <div className="border-t pt-4">
             <h3 className="text-lg font-semibold text-emerald-800 mb-2">Bidonlar</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField label="10'luk Sayısı" id="pc10" type="number" inputMode="numeric" value={formData.plasticCounts.s10} onChange={e => handleContainerChange('plasticCounts', 's10', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
               <FormField label="5'lik Sayısı" id="pc5" type="number" inputMode="numeric" value={formData.plasticCounts.s5} onChange={e => handleContainerChange('plasticCounts', 's5', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
               <FormField label="2'lik Sayısı" id="pc2" type="number" inputMode="numeric" value={formData.plasticCounts.s2} onChange={e => handleContainerChange('plasticCounts', 's2', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="10'luk Fiyatı (₺)" id="pp10" type="number" inputMode="decimal" value={formData.plasticPrices.s10} onChange={e => handleContainerChange('plasticPrices', 's10', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="5'lik Fiyatı (₺)" id="pp5" type="number" inputMode="decimal" value={formData.plasticPrices.s5} onChange={e => handleContainerChange('plasticPrices', 's5', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
-              <FormField label="2'lik Fiyatı (₺)" id="pp2" type="number" inputMode="decimal" value={formData.plasticPrices.s2} onChange={e => handleContainerChange('plasticPrices', 's2', e.target.value)} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]"/>
             </div>
           </div>
 
@@ -296,15 +290,22 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
               <div className="bg-gray-50 p-3 rounded-md border"><span className="block text-xs font-medium text-gray-500">Toplam Bidon Fiyatı</span><p className="text-base font-bold text-gray-800">{formatNumber(plasticCost, '₺')}</p></div>
             </div>
 
+            {/* Genel Toplam Kartı (Alınan Ödeme ve Ödeme Firesinin hemen üstünde) */}
+            <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-200 text-center shadow-sm">
+              <span className="block text-xs font-semibold text-blue-700 uppercase tracking-wide">Genel Toplam Tutarı</span>
+              <p className="text-xl sm:text-2xl font-extrabold text-blue-900 mt-0.5">{formatNumber(totalCost, '₺')}</p>
+            </div>
+
+            {/* Ödeme Giriş Kutuları */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
               <FormField label="Alınan Ödeme (₺)" id="payRec" type="number" inputMode="decimal" name="paymentReceived" value={formData.paymentReceived} onChange={handleChange} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]" min="0" step="any" placeholder="0"/>
               <FormField label="Ödeme Firesi (₺)" id="payLoss" type="number" inputMode="decimal" name="paymentLoss" value={formData.paymentLoss} onChange={handleChange} className="block w-full border rounded-md shadow-sm py-3 px-3 min-h-[48px]" min="0" step="any" placeholder="0"/>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="bg-blue-50 p-3 rounded-md border border-blue-200"><span className="block text-xs font-medium text-blue-700">Genel Toplam</span><p className="text-lg font-bold text-blue-800">{formatNumber(totalCost, '₺')}</p></div>
-              <div className="bg-emerald-50 p-3 rounded-md border border-emerald-200"><span className="block text-xs font-medium text-emerald-700">Alınan Ödeme</span><p className="text-lg font-bold text-emerald-800">{formatNumber(formData.paymentReceived, '₺')}</p></div>
-              <div className="bg-red-50 p-3 rounded-md border border-red-200"><span className="block text-xs font-medium text-red-700">Kalan Bakiye</span><p className="text-lg font-bold text-red-800">{formatNumber(remainingBalance, '₺')}</p></div>
+            {/* En Alttaki Sonuç Kartları (Alınan Ödeme ve Kalan Bakiye) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200 flex justify-between items-center"><span className="text-xs font-semibold text-emerald-700">Alınan Ödeme</span><p className="text-lg font-bold text-emerald-800">{formatNumber(formData.paymentReceived, '₺')}</p></div>
+              <div className="bg-red-50 p-3.5 rounded-xl border border-red-200 flex justify-between items-center"><span className="text-xs font-semibold text-red-700">Kalan Bakiye</span><p className="text-lg font-bold text-red-800">{formatNumber(remainingBalance, '₺')}</p></div>
             </div>
           </div>
 
