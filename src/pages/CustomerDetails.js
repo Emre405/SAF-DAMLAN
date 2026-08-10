@@ -76,10 +76,10 @@ const CustomerDetails = ({
       const printableDiv = document.createElement('div');
       printableDiv.style.position = 'absolute';
       printableDiv.style.left = '-9999px';
-      printableDiv.style.width = '210mm';
-      printableDiv.style.padding = '20px';
+      printableDiv.style.width = '148mm';
+      printableDiv.style.padding = '12px';
       printableDiv.style.fontFamily = 'Arial, sans-serif';
-      printableDiv.style.fontSize = '14px';
+      printableDiv.style.fontSize = '12px';
       printableDiv.style.backgroundColor = 'white';
       
       printableDiv.innerHTML = `
@@ -136,9 +136,9 @@ const CustomerDetails = ({
       });
       
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
+      const pdf = new jsPDF('p', 'mm', 'a5');
+      const imgWidth = 148;
+      const pageHeight = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;

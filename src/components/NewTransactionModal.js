@@ -176,7 +176,17 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
     const printContent = receiptRef.current;
     if (printContent) {
         const printWindow = window.open('', '_blank');
-        printWindow.document.write('<html><head><title>İşlem Fişi</title></head><body>');
+        printWindow.document.write('<html><head><title>İşlem Fişi</title>');
+        printWindow.document.write(`
+          <style>
+            @media print {
+              @page { size: A5; margin: 8mm; }
+              body { margin: 0; padding: 0; }
+            }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+          </style>
+        `);
+        printWindow.document.write('</head><body>');
         printWindow.document.write(printContent.innerHTML);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
