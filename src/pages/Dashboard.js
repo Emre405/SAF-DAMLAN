@@ -52,7 +52,7 @@ const Dashboard = ({
   const totalOilAll = transactions.reduce((sum, t) => sum + Number(t.oilLitre || 0), 0);
   const overallAvgRatio = totalOliveAll > 0 && totalOilAll > 0 
     ? (totalOliveAll / totalOilAll).toFixed(2) 
-    : 'N/A';
+    : '-';
 
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
   const latestTransactions = transactionLimit === 'all' ? sortedTransactions : sortedTransactions.slice(0, Number(transactionLimit));
@@ -83,27 +83,27 @@ const Dashboard = ({
       </div>
 
       {/* Özet Kartları */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        <SummaryCard title="Toplam İşlenen Zeytin" value={formatNumber(totalOlive, ' kg')} icon={<Leaf className="text-[#556B2F] text-xl" />} />
-        <SummaryCard title="Toplam Çıkan Yağ" value={formatNumber(totalProducedOil, ' L')} icon={<Droplet className="text-[#556B2F] text-xl" />} />
-        <SummaryCard title="Genel Zeytin/Yağ Oranı" value={overallAvgRatio} icon={<Percent className="text-purple-600" />} />
-        <SummaryCard title="Zeytin Sıkım Ücreti" value={formatNumber(totalOlivePressingFee, ' ₺')} icon={<Coins className="text-emerald-600" />} />
+      <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+        <SummaryCard title="Toplam İşlenen Zeytin" value={formatNumber(totalOlive, ' kg')} icon={<Leaf className="w-5 h-5 sm:w-6 sm:h-6 text-[#556B2F]" />} />
+        <SummaryCard title="Toplam Çıkan Yağ" value={formatNumber(totalProducedOil, ' L')} icon={<Droplet className="w-5 h-5 sm:w-6 sm:h-6 text-[#556B2F]" />} />
+        <SummaryCard title="Genel Zeytin/Yağ Oranı" value={overallAvgRatio} icon={<Percent className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />} />
+        <SummaryCard title="Zeytin Sıkım Ücreti" value={formatNumber(totalOlivePressingFee, ' ₺')} icon={<Coins className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />} />
         
         <SummaryCard
           title="Toplam Hasılat"
           value={formatNumber(totalBilledAmount - totalPaymentLoss, ' ₺')}
-          icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
+          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />}
           iconColorClass="text-blue-600"
         >
-          <div className="text-xs text-gray-600 flex flex-col gap-1 mt-2">
+          <div className="text-[11px] sm:text-xs text-gray-600 flex flex-col gap-0.5 mt-1">
             <div><span className="font-semibold">Zeytin Sıkımı:</span> {formatNumber(oliveIncome, ' ₺')}</div>
             <div><span className="font-semibold">Teneke Satışı:</span> {formatNumber(tinIncome, ' ₺')}</div>
             <div><span className="font-semibold">Bidon Satışı:</span> {formatNumber(plasticIncome, ' ₺')}</div>
           </div>
         </SummaryCard>
-        <SummaryCard title="Alınan Ödeme" value={formatNumber(totalReceivedPayment, ' ₺')} icon={<DollarSign className="text-[#556B2F] text-xl" />} iconColorClass="text-green-600" />
-        <SummaryCard title="Bekleyen Ödemeler" value={formatNumber(pendingPayments, ' ₺')} icon={<AlertCircle className="text-[#556B2F] text-xl" />} iconColorClass="text-red-600" />
-        <SummaryCard title="Ödeme Firesi" value={formatNumber(totalPaymentLoss, ' ₺')} icon={<Coins className="text-orange-600" />} />
+        <SummaryCard title="Alınan Ödeme" value={formatNumber(totalReceivedPayment, ' ₺')} icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-[#556B2F]" />} iconColorClass="text-green-600" />
+        <SummaryCard title="Bekleyen Ödemeler" value={formatNumber(pendingPayments, ' ₺')} icon={<AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-[#556B2F]" />} iconColorClass="text-red-600" />
+        <SummaryCard title="Ödeme Firesi" value={formatNumber(totalPaymentLoss, ' ₺')} icon={<Coins className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />} />
       </div>
 
       {/* Gelir-Gider Kartı */}

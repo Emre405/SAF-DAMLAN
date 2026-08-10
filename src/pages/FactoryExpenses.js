@@ -54,12 +54,14 @@ const FactoryExpenses = ({
     try {
       if (!isOnline) {
         handleCloseModals();
-        setPendingSync(prev => [...prev, {
-          id: Date.now().toString(),
-          type: type,
-          data: data,
-          timestamp: new Date().toISOString()
-        }]);
+        if (typeof setPendingSync === 'function') {
+          setPendingSync(prev => [...prev, {
+            id: Date.now().toString(),
+            type: type,
+            data: data,
+            timestamp: new Date().toISOString()
+          }]);
+        }
         showMessage('📱 Offline kaydedildi, internet bağlandığında senkronize edilecek', 'success');
         return;
       }
@@ -80,14 +82,59 @@ const FactoryExpenses = ({
     }
   };
 
+  const formatTinDetails = (item) => {
+    const parts = [];
+    if (item.s16 && Number(item.s16) > 0) parts.push(`${formatNumber(item.s16)} Adet 16'lık`);
+    if (item.s10 && Number(item.s10) > 0) parts.push(`${formatNumber(item.s10)} Adet 10'luk`);
+    if (item.s5 && Number(item.s5) > 0) parts.push(`${formatNumber(item.s5)} Adet 5'lik`);
+    return parts.length > 0 ? parts.join(', ') : '-';
+  };
+
+  const formatPlasticDetails = (item) => {
+    const parts = [];
+    if (item.s10 && Number(item.s10) > 0) parts.push(`${formatNumber(item.s10)} Adet 10'luk`);
+    if (item.s5 && Number(item.s5) > 0) parts.push(`${formatNumber(item.s5)} Adet 5'lik`);
+    if (item.s2 && Number(item.s2) > 0) parts.push(`${formatNumber(item.s2)} Adet 2'lik`);
+    return parts.length > 0 ? parts.join(', ') : '-';
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Giderler ve Diğer Gelirler</h1>
       
       <ExpenseTable title="İşçi Harcamaları" data={workerExpenses} onAddItem={() => handleOpenModal('worker')} onEditItem={(item) => handleOpenModal('worker', item)} onDeleteItem={(id) => onDeleteItem('workerExpenses', id)} columns={['Tarih', 'İşçi Adı', 'Çalıştığı Gün', 'Verilen Ücret', 'Açıklama']} fields={['date', 'workerName', 'daysWorked', 'amount', 'description']} />
       <ExpenseTable title="Muhtelif Giderler" data={factoryOverhead} onAddItem={() => handleOpenModal('overhead')} onEditItem={(item) => handleOpenModal('overhead', item)} onDeleteItem={(id) => onDeleteItem('factoryOverhead', id)} columns={['Tarih', 'Açıklama', 'Gider Tutarı']} fields={['date', 'description', 'amount']} />
-      <ExpenseTable title="Teneke Alımları" data={tinPurchases} onAddItem={() => handleOpenModal('tin')} onEditItem={(item) => handleOpenModal('tin', item)} onDeleteItem={(id) => onDeleteItem('tinPurchases', id)} columns={['Tarih', '16\'lık', '10\'luk', '5\'lik', 'Toplam Maliyet', 'Açıklama']} fields={['date', 's16', 's10', 's5', 'totalCost', 'description']} />
-      <ExpenseTable title="Bidon Alımları" data={plasticPurchases} onAddItem={() => handleOpenModal('plastic')} onEditItem={(item) => handleOpenModal('plastic', item)} onDeleteItem={(id) => onDeleteItem('plasticPurchases', id)} columns={['Tarih', '10\'luk', '5\'lik', '2\'lik', 'Toplam Maliyet', 'Açıklama']} fields={['date', 's10', 's5', 's2', 'totalCost', 'description']} />
+      
+      <ExpenseTable 
+        title="Teneke Alımları" 
+        data={tinPurchases} 
+        onAddItem={() => handleOpenModal('tin')} 
+        onEditItem={(item) => handleOpenModal('tin', item)} 
+        onDeleteItem={(id) => onDeleteItem('tinPurchases', id)} 
+        columns={['Tarih', 'Alınan Teneke', 'Toplam Maliyet', 'Açıklama']} 
+        customRowRenderer={(item) => [
+          { label: 'Tarih', value: item.date ? new Date(item.date).toLocaleDateString() : '-' },
+          { label: 'Alınan Teneke', value: formatTinDetails(item), className: 'font-semibold text-emerald-800' },
+          { label: 'Toplam Maliyet', value: formatNumber(item.totalCost, ' ₺'), className: 'font-bold text-red-600' },
+          { label: 'Açıklama', value: item.description || '-' }
+        ]}
+      />
+      
+      <ExpenseTable 
+        title="Bidon Alımları" 
+        data={plasticPurchases} 
+        onAddItem={() => handleOpenModal('plastic')} 
+        onEditItem={(item) => handleOpenModal('plastic', item)} 
+        onDeleteItem={(id) => onDeleteItem('plasticPurchases', id)} 
+        columns={['Tarih', 'Alınan Bidon', 'Toplam Maliyet', 'Açıklama']} 
+        customRowRenderer={(item) => [
+          { label: 'Tarih', value: item.date ? new Date(item.date).toLocaleDateString() : '-' },
+          { label: 'Alınan Bidon', value: formatPlasticDetails(item), className: 'font-semibold text-teal-800' },
+          { label: 'Toplam Maliyet', value: formatNumber(item.totalCost, ' ₺'), className: 'font-bold text-red-600' },
+          { label: 'Açıklama', value: item.description || '-' }
+        ]}
+      />
+      
       <ExpenseTable title="Pirina Geliri" data={pomaceRevenues} onAddItem={() => handleOpenModal('pomace')} onEditItem={(item) => handleOpenModal('pomace', item)} onDeleteItem={(id) => onDeleteItem('pomaceRevenues', id)} columns={['Tarih', 'Tır Sayısı', 'Toplam Yük (kg)', 'Kg Ücreti', 'Toplam Gelir', 'Açıklama']} fields={['date', 'truckCount', 'loadKg', 'pricePerKg', 'totalRevenue', 'description']} />
 
       {showWorkerExpenseModal && <WorkerExpenseModal onClose={handleCloseModals} onSave={(data) => handleSaveAndClose('worker', data)} editingExpense={editingWorkerExpense} />}
@@ -99,10 +146,25 @@ const FactoryExpenses = ({
   );
 };
 
-const ExpenseTable = ({ title, data, onAddItem, onEditItem, onDeleteItem, columns, fields }) => {
+const ExpenseTable = ({ title, data, onAddItem, onEditItem, onDeleteItem, columns, fields, customRowRenderer }) => {
   const [limit, setLimit] = useState(5);
-  const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
   const limitedData = limit === 'all' ? sortedData : sortedData.slice(0, Number(limit));
+
+  const getRowCells = (item) => {
+    if (customRowRenderer) return customRowRenderer(item);
+    return fields.map((field, idx) => {
+      let val = item[field];
+      if (field === 'date') val = val ? new Date(val).toLocaleDateString() : '-';
+      else if (typeof val === 'number') {
+        const isCurrency = field.toLowerCase().includes('fiyat') || field.toLowerCase().includes('maliyet') || field.toLowerCase().includes('gelir') || field.toLowerCase().includes('ücret') || field.toLowerCase().includes('tutar') || field.toLowerCase().includes('amount') || field.toLowerCase().includes('price') || field.toLowerCase().includes('revenue') || field.toLowerCase().includes('cost');
+        val = formatNumber(val, isCurrency ? ' ₺' : '');
+      } else {
+        val = val || '-';
+      }
+      return { label: columns[idx], value: val };
+    });
+  };
 
   return (
     <div className="bg-white p-4 sm:p-6 rounded-xl border shadow">
@@ -143,71 +205,61 @@ const ExpenseTable = ({ title, data, onAddItem, onEditItem, onDeleteItem, column
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {limitedData.map(item => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    {fields.map(field => {
-                      let val = item[field];
-                      if (field === 'date') val = new Date(val).toLocaleDateString();
-                      else if (typeof val === 'number') {
-                        const isCurrency = field.toLowerCase().includes('fiyat') || field.toLowerCase().includes('maliyet') || field.toLowerCase().includes('gelir') || field.toLowerCase().includes('ücret') || field.toLowerCase().includes('tutar') || field.toLowerCase().includes('amount') || field.toLowerCase().includes('price') || field.toLowerCase().includes('revenue') || field.toLowerCase().includes('cost');
-                        val = formatNumber(val, isCurrency ? ' ₺' : '');
-                      } else {
-                        val = val || 'N/A';
-                      }
-                      return <td key={field} className="px-6 py-4 whitespace-nowrap">{val}</td>;
-                    })}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button onClick={() => onEditItem(item)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors mr-2">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => onDeleteItem(item.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {limitedData.map(item => {
+                  const cells = getRowCells(item);
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      {cells.map((cell, i) => (
+                        <td key={i} className={`px-6 py-4 whitespace-nowrap ${cell.className || ''}`}>
+                          {cell.value}
+                        </td>
+                      ))}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onClick={() => onEditItem(item)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors mr-2" title="Düzenle">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onDeleteItem(item.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Sil">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* MOBİL KART LİSTESİ */}
           <div className="block md:hidden space-y-3">
-            {limitedData.map(item => (
-              <div key={item.id} className="border rounded-xl p-4 shadow-sm bg-white space-y-2">
-                {fields.map((field, idx) => {
-                  let val = item[field];
-                  if (field === 'date') val = new Date(val).toLocaleDateString();
-                  else if (typeof val === 'number') {
-                    const isCurrency = field.toLowerCase().includes('fiyat') || field.toLowerCase().includes('maliyet') || field.toLowerCase().includes('gelir') || field.toLowerCase().includes('ücret') || field.toLowerCase().includes('tutar') || field.toLowerCase().includes('amount') || field.toLowerCase().includes('price') || field.toLowerCase().includes('revenue') || field.toLowerCase().includes('cost');
-                    val = formatNumber(val, isCurrency ? ' ₺' : '');
-                  } else {
-                    val = val || 'N/A';
-                  }
-                  return (
-                    <div key={field} className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400 font-semibold">{columns[idx]}:</span>
-                      <span className="font-bold text-gray-800">{val}</span>
+            {limitedData.map(item => {
+              const cells = getRowCells(item);
+              return (
+                <div key={item.id} className="border rounded-xl p-4 shadow-sm bg-white space-y-2">
+                  {cells.map((cell, idx) => (
+                    <div key={idx} className="flex justify-between text-xs sm:text-sm">
+                      <span className="text-gray-400 font-semibold">{cell.label}:</span>
+                      <span className={`font-bold ${cell.className || 'text-gray-800'}`}>{cell.value}</span>
                     </div>
-                  );
-                })}
-                <div className="flex justify-end gap-2 border-t pt-2 mt-2">
-                  <button 
-                    onClick={() => onEditItem(item)} 
-                    className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 border rounded-lg text-xs min-h-[36px]"
-                  >
-                    <Edit className="w-3 h-3" />
-                    <span>Düzenle</span>
-                  </button>
-                  <button 
-                    onClick={() => onDeleteItem(item.id)} 
-                    className="flex items-center space-x-1 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs min-h-[36px]"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Sil</span>
-                  </button>
+                  ))}
+                  <div className="flex justify-end gap-2 border-t pt-2 mt-2">
+                    <button 
+                      onClick={() => onEditItem(item)} 
+                      className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 border rounded-lg text-xs min-h-[36px]"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>Düzenle</span>
+                    </button>
+                    <button 
+                      onClick={() => onDeleteItem(item.id)} 
+                      className="flex items-center space-x-1 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs min-h-[36px]"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Sil</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

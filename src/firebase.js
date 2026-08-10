@@ -1,6 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, enableNetwork, disableNetwork, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager, 
+  getFirestore, 
+  enableNetwork, 
+  disableNetwork, 
+  CACHE_SIZE_UNLIMITED 
+} from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -19,14 +27,17 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 
-// Initialize Cloud Firestore with cache settings - YENİ YÖNTEM
+// Initialize Cloud Firestore with persistent cache settings - YENİ YÖNTEM
 let db;
 try {
   db = initializeFirestore(app, {
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED
+    }),
     ignoreUndefinedProperties: true
   });
-  console.log("✅ Firestore initialized with unlimited cache");
+  console.log("✅ Firestore initialized with persistent local cache (multi-tab & unlimited)");
 } catch (error) {
   console.warn("⚠️ Firestore already initialized, using existing instance");
   db = getFirestore(app);

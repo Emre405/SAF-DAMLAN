@@ -36,7 +36,7 @@ const Statistics = ({ transactions, tinPurchases, plasticPurchases }) => {
 
   const totalOliveAll = transactions.reduce((sum, t) => sum + Number(t.oliveKg || 0), 0);
   const totalOilAll = transactions.reduce((sum, t) => sum + Number(t.oilLitre || 0), 0);
-  const overallAvgRatio = totalOliveAll > 0 && totalOilAll > 0 ? (totalOliveAll / totalOilAll).toFixed(2) : 'N/A';
+  const overallAvgRatio = totalOliveAll > 0 && totalOilAll > 0 ? (totalOliveAll / totalOilAll).toFixed(2) : '-';
 
   const detailedTinStats = calculateDetailedTinStatistics(tinPurchases);
   const tinProfitLoss = calculateTinProfitLoss(tinPurchases, transactions);

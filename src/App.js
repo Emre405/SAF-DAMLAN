@@ -197,7 +197,7 @@ const readData = async (userId) => {
     }
 };
 
-const writeData = async (data, userId, setSyncStatusCallback) => {
+const writeData = (data, userId, setSyncStatusCallback) => {
     if (!userId) {
         localStorage.setItem('safDamlaData_guest', JSON.stringify(data));
         return;
@@ -213,21 +213,19 @@ const writeData = async (data, userId, setSyncStatusCallback) => {
     try {
         if (setSyncStatusCallback) setSyncStatusCallback('syncing');
         const docRef = doc(db, 'userData', userId);
-        await setDoc(docRef, data, { merge: true });
-        if (setSyncStatusCallback) {
-            setTimeout(() => setSyncStatusCallback('synced'), 1000);
-        }
-    } catch (error) {
-        console.error("❌ Error writing data to Firestore:", error);
-        if (setSyncStatusCallback) setSyncStatusCallback('offline');
         
-        const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
-        offlineData.push({
-            timestamp: new Date().toISOString(),
-            userId: userId,
-            data: data
-        });
-        localStorage.setItem('offlineData', JSON.stringify(offlineData));
+        // Background non-blocking write to Firestore
+        setDoc(docRef, data, { merge: true })
+            .then(() => {
+                if (setSyncStatusCallback) setSyncStatusCallback('synced');
+            })
+            .catch(error => {
+                console.error("❌ Error writing data to Firestore (background):", error);
+                if (setSyncStatusCallback) setSyncStatusCallback('offline');
+            });
+    } catch (error) {
+        console.error("❌ Error initializing Firestore write:", error);
+        if (setSyncStatusCallback) setSyncStatusCallback('offline');
     }
 };
 
@@ -250,7 +248,6 @@ function App() {
 
   const [isOnline, setIsOnline] = useState(getNetworkStatus());
   const [syncStatus, setSyncStatus] = useState('synced');
-  const [pendingSync, setPendingSync] = useState([]);
 
   const [workerExpenses, setWorkerExpenses] = useState([]);
   const [factoryOverhead, setFactoryOverhead] = useState([]);
@@ -268,68 +265,91 @@ function App() {
   });
 
   const readUserData = async () => readData(user?.uid);
-  const writeUserData = async (data) => writeData(data, user?.uid, setSyncStatus);
+  const writeUserData = (data) => writeData(data, user?.uid, setSyncStatus);
 
-  const syncPendingData = async () => {
-    if (!user?.uid || !isOnline) return;
-    
+  const migrateLegacyOfflineData = async (userId) => {
     try {
-        const offlineData = JSON.parse(localStorage.getItem('offlineData') || '[]');
-        if (offlineData.length === 0) return;
-        
-        console.log("🔄 Syncing offline data:", offlineData.length, "items");
-        const currentData = await readData(user.uid);
-        
-        for (const item of offlineData) {
-            if (item.userId === user.uid) {
-                const mergedData = {
-                    ...currentData,
-                    ...item.data,
-                    customers: [...(currentData.customers || []), ...(item.data.customers || [])],
-                    transactions: [...(currentData.transactions || []), ...(item.data.transactions || [])],
-                    workerExpenses: [...(currentData.workerExpenses || []), ...(item.data.workerExpenses || [])],
-                    factoryOverhead: [...(currentData.factoryOverhead || []), ...(item.data.factoryOverhead || [])],
-                    pomaceRevenues: [...(currentData.pomaceRevenues || []), ...(item.data.pomaceRevenues || [])],
-                    tinPurchases: [...(currentData.tinPurchases || []), ...(item.data.tinPurchases || [])],
-                    plasticPurchases: [...(currentData.plasticPurchases || []), ...(item.data.plasticPurchases || [])],
-                    oilPurchases: [...(currentData.oilPurchases || []), ...(item.data.oilPurchases || [])],
-                    oilSales: [...(currentData.oilSales || []), ...(item.data.oilSales || [])]
-                };
-                
-                mergedData.customers = mergedData.customers.filter((item, index, self) => 
-                    index === self.findIndex(t => t.id === item.id)
-                );
-                mergedData.transactions = mergedData.transactions.filter((item, index, self) => 
-                    index === self.findIndex(t => t.id === item.id)
-                );
-                
-                await writeData(mergedData, user.uid, setSyncStatus);
-            }
+      const offlineDataStr = localStorage.getItem('offlineData');
+      if (!offlineDataStr) return;
+
+      const offlineData = JSON.parse(offlineDataStr);
+      const userOfflineItems = offlineData.filter(item => item.userId === userId);
+      if (userOfflineItems.length === 0) return;
+
+      console.log(`⚠️ Legacy offline data migration started for user: ${userId}. Merging ${userOfflineItems.length} items.`);
+
+      const userLocalKey = `safDamlaData_${userId}`;
+      const localDataStr = localStorage.getItem(userLocalKey);
+      let mergedData = localDataStr ? JSON.parse(localDataStr) : { ...mockData };
+
+      const mergeArraysById = (arr1 = [], arr2 = []) => {
+        const combined = [...arr1, ...arr2];
+        return combined.filter((item, index, self) => 
+          item && item.id && index === self.findIndex(t => t && t.id === item.id)
+        );
+      };
+
+      for (const item of userOfflineItems) {
+        if (item.data) {
+          mergedData = {
+            ...mergedData,
+            ...item.data,
+            customers: mergeArraysById(mergedData.customers, item.data.customers),
+            transactions: mergeArraysById(mergedData.transactions, item.data.transactions),
+            workerExpenses: mergeArraysById(mergedData.workerExpenses, item.data.workerExpenses),
+            factoryOverhead: mergeArraysById(mergedData.factoryOverhead, item.data.factoryOverhead),
+            pomaceRevenues: mergeArraysById(mergedData.pomaceRevenues, item.data.pomaceRevenues),
+            tinPurchases: mergeArraysById(mergedData.tinPurchases, item.data.tinPurchases),
+            plasticPurchases: mergeArraysById(mergedData.plasticPurchases, item.data.plasticPurchases),
+            oilPurchases: mergeArraysById(mergedData.oilPurchases, item.data.oilPurchases),
+            oilSales: mergeArraysById(mergedData.oilSales, item.data.oilSales),
+            defaultPrices: item.data.defaultPrices || mergedData.defaultPrices || mockData.defaultPrices
+          };
         }
-        
+      }
+
+      localStorage.setItem(userLocalKey, JSON.stringify(mergedData));
+
+      // Non-blocking background save to Firestore
+      const docRef = doc(db, 'userData', userId);
+      setDoc(docRef, mergedData, { merge: true })
+        .then(() => {
+          console.log("✅ Legacy offline data successfully synced to Firestore");
+        })
+        .catch(err => {
+          console.warn("⚠️ Legacy offline data write to Firestore deferred:", err);
+        });
+
+      const remainingOfflineData = offlineData.filter(item => item.userId !== userId);
+      if (remainingOfflineData.length > 0) {
+        localStorage.setItem('offlineData', JSON.stringify(remainingOfflineData));
+      } else {
         localStorage.removeItem('offlineData');
-        console.log("✅ Offline data synced successfully");
-        
-        // Yenilemek yerine, state'lerin listener aracılığıyla güncellenmesini bekleriz.
-        // window.location.reload();
-        
+      }
+
+      console.log("✅ Legacy offline data migration finished");
+
+      setCustomers(mergedData.customers || []);
+      setTransactions(mergedData.transactions || []);
+      setWorkerExpenses(mergedData.workerExpenses || []);
+      setFactoryOverhead(mergedData.factoryOverhead || []);
+      setPomaceRevenues(mergedData.pomaceRevenues || []);
+      setTinPurchases(mergedData.tinPurchases || []);
+      setPlasticPurchases(mergedData.plasticPurchases || []);
+      setOilPurchases(mergedData.oilPurchases || []);
+      setOilSales(mergedData.oilSales || []);
+      if (mergedData.defaultPrices) setDefaultPrices(mergedData.defaultPrices);
+
     } catch (error) {
-        console.error("❌ Error syncing offline data:", error);
+      console.error("❌ Error migrating legacy offline data:", error);
     }
   };
 
   useEffect(() => {
-    const initialStatus = navigator.onLine;
-    setIsOnline(initialStatus);
-    setSyncStatus(initialStatus ? 'synced' : 'offline');
-    
     const handleOnline = () => {
       setIsOnline(true);
       setSyncStatus('syncing');
-      setTimeout(() => {
-        setSyncStatus('synced');
-        syncPendingData();
-      }, 1000);
+      setTimeout(() => setSyncStatus('synced'), 1500);
     };
     
     const handleOffline = () => {
@@ -340,44 +360,14 @@ function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    const checkNetworkStatus = async () => {
-      try {
-        await fetch('https://www.google.com/favicon.ico', {
-          method: 'HEAD',
-          mode: 'no-cors',
-          cache: 'no-cache'
-        });
-        const currentStatus = true;
-        setIsOnline(prevIsOnline => {
-          if (currentStatus !== prevIsOnline) {
-            setSyncStatus(currentStatus ? 'synced' : 'offline');
-            if (currentStatus) {
-              setTimeout(() => syncPendingData(), 1000);
-            }
-            return currentStatus;
-          }
-          return prevIsOnline;
-        });
-      } catch (error) {
-        const currentStatus = false;
-        setIsOnline(prevIsOnline => {
-          if (currentStatus !== prevIsOnline) {
-            setSyncStatus('offline');
-            return currentStatus;
-          }
-          return prevIsOnline;
-        });
-      }
-    };
-    
-    const interval = setInterval(checkNetworkStatus, 5000);
+    setIsOnline(navigator.onLine);
+    setSyncStatus(navigator.onLine ? 'synced' : 'offline');
     
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
     };
-  }, [user?.uid, isOnline]);
+  }, []);
 
   useEffect(() => {
     const initOfflineSupport = async () => {
@@ -405,12 +395,12 @@ function App() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log("Setting up real-time listener for user:", user.uid);
-    
-    const docRef = doc(db, 'userData', user.uid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+    // 1. Instantly load from localStorage on startup (0ms delay)
+    const userLocalKey = `safDamlaData_${user.uid}`;
+    const savedLocalData = localStorage.getItem(userLocalKey);
+    if (savedLocalData) {
+      try {
+        const data = JSON.parse(savedLocalData);
         setCustomers(data.customers || []);
         setTransactions(data.transactions || []);
         setWorkerExpenses(data.workerExpenses || []);
@@ -420,15 +410,40 @@ function App() {
         setPlasticPurchases(data.plasticPurchases || []);
         setOilPurchases(data.oilPurchases || []);
         setOilSales(data.oilSales || []);
-        setDefaultPrices(data.defaultPrices || {
-          pricePerKg: 3,
-          tinPrices: { s16: 80, s10: 70, s5: 60 },
-          plasticPrices: { s10: 20, s5: 15, s2: 10 },
-          oilPurchasePrice: 200,
-          oilSalePrice: 250
-        });
+        if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
+        console.log("⚡ Instantly loaded data from localStorage on startup");
+      } catch (e) {
+        console.error("Error parsing localStorage data on startup:", e);
+      }
+    }
+
+    // 2. Perform legacy offline migration (if any legacy offlineData exists)
+    migrateLegacyOfflineData(user.uid);
+
+    // 3. Set up native persistent real-time listener
+    console.log("Setting up real-time listener for user:", user.uid);
+    const docRef = doc(db, 'userData', user.uid);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Keep local storage copy updated
+        localStorage.setItem(userLocalKey, JSON.stringify(data));
+        
+        setCustomers(data.customers || []);
+        setTransactions(data.transactions || []);
+        setWorkerExpenses(data.workerExpenses || []);
+        setFactoryOverhead(data.factoryOverhead || []);
+        setPomaceRevenues(data.pomaceRevenues || []);
+        setTinPurchases(data.tinPurchases || []);
+        setPlasticPurchases(data.plasticPurchases || []);
+        setOilPurchases(data.oilPurchases || []);
+        setOilSales(data.oilSales || []);
+        if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
         setSyncStatus('synced');
       } else {
+        // Doc doesn't exist yet, fall back to readData (migrating mock/localStorage fallback)
         async function migrateData() {
           const data = await readData(user.uid);
           setCustomers(data.customers || []);
@@ -440,16 +455,11 @@ function App() {
           setPlasticPurchases(data.plasticPurchases || []);
           setOilPurchases(data.oilPurchases || []);
           setOilSales(data.oilSales || []);
-          setDefaultPrices(data.defaultPrices || {
-            pricePerKg: 3,
-            tinPrices: { s16: 80, s10: 70, s5: 60 },
-            plasticPrices: { s10: 20, s5: 15, s2: 10 },
-            oilPurchasePrice: 200,
-            oilSalePrice: 250
-          });
+          if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
           
           if (data.customers && data.customers.length > 0) {
-            await writeData(data, user.uid, setSyncStatus);
+            // Background write
+            writeData(data, user.uid, setSyncStatus);
           }
         }
         migrateData();
@@ -497,7 +507,7 @@ function App() {
     try {
       const data = await readData(user?.uid);
       data.defaultPrices = newPrices;
-      await writeData(data, user?.uid, setSyncStatus);
+      writeData(data, user?.uid, setSyncStatus);
       setDefaultPrices(newPrices);
       showMessage('Varsayılan fiyatlar kaydedildi!', 'success');
     } catch (error) {
@@ -520,7 +530,7 @@ function App() {
         showMessage('Müşteri eklendi!', 'success');
       }
       data.customers = customersList;
-      await writeUserData(data);
+      writeUserData(data);
       setCustomers(customersList);
     } catch (error) {
       console.error('Error saving customer:', error);
@@ -567,19 +577,7 @@ function App() {
       }
       data.transactions = trans;
       
-      if (!isOnline) {
-        setTransactions(trans);
-        setPendingSync(prev => [...prev, {
-          id: Date.now().toString(),
-          type: 'transaction',
-          data: data,
-          timestamp: new Date().toISOString()
-        }]);
-        showMessage('📱 Çevrimdışı kaydedildi.', 'success');
-        return Promise.resolve();
-      }
-      
-      await writeUserData(data);
+      writeUserData(data);
       setTransactions(trans);
       showMessage(transactionData.id ? 'İşlem güncellendi!' : 'İşlem eklendi!', 'success');
     } catch (error) {
@@ -613,7 +611,7 @@ function App() {
       };
       trans.push(paymentTransaction);
       data.transactions = trans;
-      await writeUserData(data);
+      writeUserData(data);
       setTransactions(trans);
       showMessage(`${formatNumber(amount, ' ₺')} tahsilat kaydedildi.`, 'success');
     } catch (error) {
@@ -640,7 +638,7 @@ function App() {
         showMessage('Zeytinyağı alımı eklendi!', 'success');
       }
       data.oilPurchases = purchases;
-      await writeUserData(data);
+      writeUserData(data);
       setOilPurchases(purchases);
     } catch (error) {
       console.error('Error saving oil purchase:', error);
@@ -666,7 +664,7 @@ function App() {
         showMessage('Zeytinyağı satışı eklendi!', 'success');
       }
       data.oilSales = sales;
-      await writeUserData(data);
+      writeUserData(data);
       setOilSales(sales);
     } catch (error) {
       console.error('Error saving oil sale:', error);
@@ -692,7 +690,7 @@ function App() {
         showMessage('Harcama eklendi!', 'success');
       }
       data.workerExpenses = expenses;
-      await writeUserData(data);
+      writeUserData(data);
       setWorkerExpenses(expenses);
     } catch (error) {
       console.error('Error saving worker expense:', error);
@@ -718,7 +716,7 @@ function App() {
         showMessage('Gider eklendi!', 'success');
       }
       data.factoryOverhead = overhead;
-      await writeUserData(data);
+      writeUserData(data);
       setFactoryOverhead(overhead);
     } catch (error) {
       console.error('Error saving factory overhead:', error);
@@ -744,7 +742,7 @@ function App() {
         showMessage('Gelir eklendi!', 'success');
       }
       data.pomaceRevenues = revenues;
-      await writeUserData(data);
+      writeUserData(data);
       setPomaceRevenues(revenues);
     } catch (error) {
       console.error('Error saving pomace revenue:', error);
@@ -770,7 +768,7 @@ function App() {
         showMessage('Alım eklendi!', 'success');
       }
       data.tinPurchases = purchases;
-      await writeUserData(data);
+      writeUserData(data);
       setTinPurchases(purchases);
     } catch (error) {
       console.error('Error saving tin purchase:', error);
@@ -796,7 +794,7 @@ function App() {
         showMessage('Alım eklendi!', 'success');
       }
       data.plasticPurchases = purchases;
-      await writeUserData(data);
+      writeUserData(data);
       setPlasticPurchases(purchases);
     } catch (error) {
       console.error('Error saving plastic purchase:', error);
@@ -810,7 +808,7 @@ function App() {
       let collection = data[collectionName] || [];
       collection = collection.filter(item => item.id !== id);
       data[collectionName] = collection;
-      await writeUserData(data);
+      writeUserData(data);
       
       switch (collectionName) {
         case 'transactions': setTransactions(collection); break;
@@ -839,7 +837,7 @@ function App() {
       trans = trans.filter(t => t.customerId !== customerId);
       data.customers = customersList;
       data.transactions = trans;
-      await writeUserData(data);
+      writeUserData(data);
       setCustomers(customersList);
       setTransactions(trans);
       showMessage('Müşteri ve işlemleri silindi.', 'success');
@@ -1049,7 +1047,6 @@ function App() {
             onDeleteItem={(collectionName, id) => handleDeleteItem(collectionName, id)}
             isOnline={isOnline}
             showMessage={showMessage}
-            setPendingSync={setPendingSync}
           />
         )}
         {currentPage === 'customerDetails' && (
