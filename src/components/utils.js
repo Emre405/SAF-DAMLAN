@@ -11,7 +11,7 @@ export const formatOilRatioDisplay = (oliveKg, oilLitre) => {
     const ratio = (numOliveKg / numOilLitre).toFixed(2);
     return `${formatNumber(numOliveKg)} kg zeytin / ${formatNumber(numOilLitre)} litre yağ = ${ratio}`;
   }
-  return 'N/A';
+  return '-';
 };
 
 export const roundToTwo = (num) => {
