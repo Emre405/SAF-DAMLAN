@@ -91,7 +91,7 @@ const Dashboard = ({
         
         <SummaryCard
           title="Toplam Hasılat"
-          value={formatNumber(totalBilledAmount - totalPaymentLoss, ' ₺')}
+          value={formatNumber(totalBilledAmount, ' ₺')}
           icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />}
           iconColorClass="text-blue-600"
         >

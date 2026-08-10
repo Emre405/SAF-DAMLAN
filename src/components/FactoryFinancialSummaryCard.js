@@ -32,7 +32,7 @@ const FactoryFinancialSummaryCard = ({ summary }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-emerald-50 p-4 rounded-lg flex flex-col items-center justify-center">
           <DollarSign className="w-8 h-8 text-emerald-600 mb-2" />
-          <p className="text-lg font-medium text-gray-700" style={{ fontSize: '22px', color: '#212121' }}>Toplam Gelir</p>
+          <p className="text-lg font-medium text-gray-700" style={{ fontSize: '22px', color: '#212121' }}>Gelirler Toplamı</p>
           <p className="text-2xl font-bold text-emerald-800">{formatNumber(totalFactoryIncome, '₺')}</p>
           <div className="text-sm text-gray-600 mt-2 text-center space-y-1">
             <p>Toplam Hasılat: {formatNumber(totalBilledAmount, '₺')}</p>
@@ -44,7 +44,7 @@ const FactoryFinancialSummaryCard = ({ summary }) => {
         </div>
         <div className="bg-red-50 p-4 rounded-lg flex flex-col items-center justify-center">
           <Info className="w-8 h-8 text-red-600 mb-2" />
-          <p className="text-lg font-medium text-gray-700" style={{ fontSize: '22px', color: '#212121' }}>Toplam Gider</p>
+          <p className="text-lg font-medium text-gray-700" style={{ fontSize: '22px', color: '#212121' }}>Giderler Toplamı</p>
           <p className="text-2xl font-bold text-red-800">{formatNumber(totalFactoryExpenses, '₺')}</p>
           <div className="text-sm text-gray-600 mt-2 space-y-1">
             <p>İşçi Giderleri: {formatNumber(totalWorkerExpenses, '₺')}</p>
