@@ -918,7 +918,7 @@ function App() {
               <NavItem text="Ana Sayfa" icon={<Home className="w-5 h-5" />} active={currentPage === 'dashboard'} onClick={() => navigateTo('dashboard')} textClassName="text-sm" />
               <NavItem text="Kayıtlar" icon={<List className="w-5 h-5" />} active={currentPage === 'records'} onClick={() => navigateTo('records')} textClassName="text-sm" />
               <NavItem text="Müşteriler" icon={<Users className="w-5 h-5" />} active={currentPage === 'customers'} onClick={() => navigateTo('customers')} textClassName="text-sm" />
-              <NavItem text="Gelir Gider" icon={<Factory className="w-5 h-5" />} active={currentPage === 'expenses'} onClick={() => navigateTo('expenses')} textClassName="text-sm" />
+              <NavItem text="Gelir/Gider" icon={<Factory className="w-5 h-5" />} active={currentPage === 'expenses'} onClick={() => navigateTo('expenses')} textClassName="text-sm" />
               <NavItem text="İstatistikler" icon={<BarChart2 className="w-5 h-5" />} active={currentPage === 'statistics'} onClick={() => navigateTo('statistics')} textClassName="text-sm" />
               <NavItem text="Stok" icon={<Package className="w-5 h-5" />} active={currentPage === 'stock'} onClick={() => navigateTo('stock')} textClassName="text-sm" />
               <NavItem text="Yedekler" icon={<Download className="w-5 h-5" />} active={currentPage === 'backup'} onClick={() => navigateTo('backup')} textClassName="text-sm" />
@@ -1103,7 +1103,7 @@ function App() {
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${currentPage === 'expenses' ? 'text-emerald-600 font-bold' : 'text-gray-500'}`}
         >
           <Factory className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">Gelir Gider</span>
+          <span className="text-[10px]">Gelir/Gider</span>
         </button>
         <button 
           onClick={() => setShowMobileMenu(!showMobileMenu)}

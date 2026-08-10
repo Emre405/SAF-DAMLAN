@@ -1,8 +1,20 @@
 import React from 'react';
 import { Package } from 'lucide-react';
-import { formatNumber, calculateDetailedTinStatistics, calculateTinProfitLoss } from '../components/utils';
+import { formatNumber, calculateDetailedTinStatistics, calculateTinProfitLoss, calculateFactorySummary } from '../components/utils';
 
 const Statistics = ({ transactions, tinPurchases, plasticPurchases }) => {
+  const factorySummary = calculateFactorySummary({
+    transactions: transactions || [],
+    workerExpenses: [],
+    factoryOverhead: [],
+    pomaceRevenues: [],
+    tinPurchases: tinPurchases || [],
+    plasticPurchases: plasticPurchases || []
+  });
+
+  const tinStockValue = factorySummary.toplamTenekeKalanMaliyet || 0;
+  const plasticStockValue = factorySummary.toplamBidonKalanMaliyet || 0;
+
   const monthlyStatsMap = transactions.reduce((acc, t) => {
     const date = new Date(t.date);
     const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -28,11 +40,11 @@ const Statistics = ({ transactions, tinPurchases, plasticPurchases }) => {
           (Number(t.tinCounts?.s10 || 0) * Number(t.tinPrices?.s10 || 0)) +
           (Number(t.tinCounts?.s5 || 0) * Number(t.tinPrices?.s5 || 0)), 0);
   const totalTinPurchaseCost = tinPurchases.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-  const netTinProfit = totalTinRevenue - totalTinPurchaseCost;
+  const netTinProfit = (totalTinRevenue + tinStockValue) - totalTinPurchaseCost;
 
   const totalPlasticRevenue = transactions.reduce((sum, t) => sum + (Number(t.plasticCounts?.s10 || 0) * Number(t.plasticPrices?.s10 || 0)) + (Number(t.plasticCounts?.s5 || 0) * Number(t.plasticPrices?.s5 || 0)) + (Number(t.plasticCounts?.s2 || 0) * Number(t.plasticPrices?.s2 || 0)), 0);
   const totalPlasticPurchaseCost = plasticPurchases.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-  const netPlasticProfit = totalPlasticRevenue - totalPlasticPurchaseCost;
+  const netPlasticProfit = (totalPlasticRevenue + plasticStockValue) - totalPlasticPurchaseCost;
 
   const totalOliveAll = transactions.reduce((sum, t) => sum + Number(t.oliveKg || 0), 0);
   const totalOilAll = transactions.reduce((sum, t) => sum + Number(t.oilLitre || 0), 0);
@@ -50,9 +62,11 @@ const Statistics = ({ transactions, tinPurchases, plasticPurchases }) => {
         <div className="bg-white p-6 rounded-xl border shadow">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Package className="w-5 h-5 mr-2 text-orange-500" />Teneke Kar/Zarar Durumu</h2>
           <div className="space-y-3">
-            <p className="flex justify-between text-sm"><span>Toplam Satış Geliri:</span> <span className="font-bold">{formatNumber(totalTinRevenue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm"><span>Satış Geliri:</span> <span className="font-bold">{formatNumber(totalTinRevenue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm"><span>Kalan Stok Değeri:</span> <span className="font-bold text-emerald-700">{formatNumber(tinStockValue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm border-t pt-1"><span>Toplam Satış + Stok Değeri:</span> <span className="font-bold">{formatNumber(totalTinRevenue + tinStockValue, ' ₺')}</span></p>
             <p className="flex justify-between text-sm"><span>Toplam Alım Maliyeti:</span> <span className="font-bold">{formatNumber(totalTinPurchaseCost, ' ₺')}</span></p>
-            <p className="flex justify-between text-base border-t pt-2 font-semibold"><span>Net Kar/Zarar:</span> <span className={netTinProfit >= 0 ? 'text-green-600' : 'text-red-600'}>{formatNumber(netTinProfit, ' ₺')}</span></p>
+            <p className="flex justify-between text-base border-t pt-2 font-semibold"><span>Net Kar/Zarar:</span> <span className={netTinProfit >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{formatNumber(netTinProfit, ' ₺')}</span></p>
           </div>
         </div>
 
@@ -60,9 +74,11 @@ const Statistics = ({ transactions, tinPurchases, plasticPurchases }) => {
         <div className="bg-white p-6 rounded-xl border shadow">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Package className="w-5 h-5 mr-2 text-teal-500" />Bidon Kar/Zarar Durumu</h2>
           <div className="space-y-3">
-            <p className="flex justify-between text-sm"><span>Toplam Satış Geliri:</span> <span className="font-bold">{formatNumber(totalPlasticRevenue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm"><span>Satış Geliri:</span> <span className="font-bold">{formatNumber(totalPlasticRevenue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm"><span>Kalan Stok Değeri:</span> <span className="font-bold text-emerald-700">{formatNumber(plasticStockValue, ' ₺')}</span></p>
+            <p className="flex justify-between text-sm border-t pt-1"><span>Toplam Satış + Stok Değeri:</span> <span className="font-bold">{formatNumber(totalPlasticRevenue + plasticStockValue, ' ₺')}</span></p>
             <p className="flex justify-between text-sm"><span>Toplam Alım Maliyeti:</span> <span className="font-bold">{formatNumber(totalPlasticPurchaseCost, ' ₺')}</span></p>
-            <p className="flex justify-between text-base border-t pt-2 font-semibold"><span>Net Kar/Zarar:</span> <span className={netPlasticProfit >= 0 ? 'text-green-600' : 'text-red-600'}>{formatNumber(netPlasticProfit, ' ₺')}</span></p>
+            <p className="flex justify-between text-base border-t pt-2 font-semibold"><span>Net Kar/Zarar:</span> <span className={netPlasticProfit >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{formatNumber(netPlasticProfit, ' ₺')}</span></p>
           </div>
         </div>
       </div>
