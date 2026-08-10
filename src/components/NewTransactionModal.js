@@ -197,6 +197,20 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
     }
   };
 
+  const handleSaveAndPrint = async (e) => {
+    if (e) e.preventDefault();
+    if (!customerSearchTerm.trim()) {
+      setErrorMsg('Lütfen bir müşteri adı girin.');
+      return;
+    }
+    
+    // Fiş yazdırma penceresini aç
+    handlePrint();
+    
+    // İşlemi veritabanına kaydet ve modalı kapat
+    await handleSubmit(e);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto p-0 relative">
@@ -321,10 +335,12 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
 
           {/* Footer */}
           <div className="col-span-full flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6">
-            <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors shadow-sm min-h-[48px]">İptal</button>
-            <button type="button" onClick={handlePrint} className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md min-h-[48px]">Yazdır</button>
-            <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow-md min-h-[48px] disabled:opacity-50" disabled={isLoading}>
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-5 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors shadow-sm min-h-[48px]">İptal</button>
+            <button type="submit" className="w-full sm:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow-md min-h-[48px] disabled:opacity-50" disabled={isLoading}>
               {isLoading ? (navigator.onLine ? '☁️ Kaydediliyor...' : '📱 Offline Kaydediliyor...') : 'Kaydet'}
+            </button>
+            <button type="button" onClick={handleSaveAndPrint} className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md min-h-[48px] disabled:opacity-50" disabled={isLoading}>
+              {isLoading ? '☁️ Kaydediliyor...' : '🖨️ Kaydet ve Yazdır'}
             </button>
           </div>
         </form>

@@ -100,7 +100,7 @@ const FactoryExpenses = ({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Giderler ve Diğer Gelirler</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Gelirler ve Giderler</h1>
       
       <ExpenseTable title="İşçi Harcamaları" data={workerExpenses} onAddItem={() => handleOpenModal('worker')} onEditItem={(item) => handleOpenModal('worker', item)} onDeleteItem={(id) => onDeleteItem('workerExpenses', id)} columns={['Tarih', 'İşçi Adı', 'Çalıştığı Gün', 'Verilen Ücret', 'Açıklama']} fields={['date', 'workerName', 'daysWorked', 'amount', 'description']} />
       <ExpenseTable title="Muhtelif Giderler" data={factoryOverhead} onAddItem={() => handleOpenModal('overhead')} onEditItem={(item) => handleOpenModal('overhead', item)} onDeleteItem={(id) => onDeleteItem('factoryOverhead', id)} columns={['Tarih', 'Açıklama', 'Gider Tutarı']} fields={['date', 'description', 'amount']} />
