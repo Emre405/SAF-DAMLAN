@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FormField } from './FormFields';
-import PrintableReceipt from './PrintableReceipt';
-import { roundToTwo, formatNumber, toInputDateString, printHtml, printTransactionReceipt } from './utils';
+import { roundToTwo, formatNumber, toInputDateString, printTransactionReceipt } from './utils';
 
 const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, defaultPrices, onSaveDefaultPrices, isOnline }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -27,7 +26,7 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
   });
 
   const customerSearchRef = useRef(null);
-  const receiptRef = useRef();
+
 
   useEffect(() => {
     const initialTinCounts = { s16: '', s10: '', s5: '' };
@@ -172,33 +171,54 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
     }
   };
 
-  const handlePrint = () => {
-    if (receiptRef.current) {
-      printHtml(receiptRef.current.innerHTML, 'İşlem Fişi');
-    } else {
-      const transactionData = {
-        ...formData,
-        customerName: customerSearchTerm,
-        totalCost,
-        oilRatio,
-        remainingBalance,
-      };
-      printTransactionReceipt(transactionData);
-    }
-  };
-
   const handleSaveAndPrint = async (e) => {
     if (e) e.preventDefault();
     if (!customerSearchTerm.trim()) {
       setErrorMsg('Lütfen bir müşteri adı girin.');
       return;
     }
-    
-    // Fiş yazdırma penceresini aç
-    handlePrint();
-    
-    // İşlemi veritabanına kaydet ve modalı kapat
-    await handleSubmit(e);
+
+    // Yazdırma verisini kaydetmeden ÖNCE yakala (form hala açıkken)
+    const printData = {
+      ...formData,
+      customerName: customerSearchTerm,
+      totalCost,
+      oilRatio,
+      remainingBalance,
+    };
+
+    // Önce veritabanına kaydet
+    const transactionData = {
+      ...formData,
+      customerName: customerSearchTerm,
+      customerId: selectedCustomerOption?.id || null,
+      totalCost,
+      oilRatio,
+      remainingBalance,
+      id: editingTransaction?.id,
+    };
+
+    if (!navigator.onLine) {
+      onSave(transactionData);
+      onClose();
+      // Modal kapandıktan sonra yazdır (bağımsız fonksiyon, DOM'a bağlı değil)
+      setTimeout(() => printTransactionReceipt(printData), 300);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      await onSave(transactionData);
+      setIsLoading(false);
+      onClose();
+      // Modal kapandıktan sonra yazdır (bağımsız fonksiyon, DOM'a bağlı değil)
+      setTimeout(() => printTransactionReceipt(printData), 300);
+    } catch (err) {
+      setErrorMsg(err?.message || 'Kayıt sırasında bir hata oluştu.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -335,38 +355,7 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
           </div>
         </form>
         
-        {/* Gizli fiş bileşeni */}
-        <div style={{ display: "none" }}>
-          <PrintableReceipt 
-            ref={receiptRef} 
-            transactionData={{
-              ...formData,
-              customerName: customerSearchTerm,
-              totalCost: (
-                (Number(formData.oliveKg) || 0) * (Number(formData.pricePerKg) || 0)
-                + (Number(formData.tinCounts?.s16 || 0) * Number(formData.tinPrices?.s16 || 0))
-                + (Number(formData.tinCounts?.s10 || 0) * Number(formData.tinPrices?.s10 || 0))
-                + (Number(formData.tinCounts?.s5 || 0) * Number(formData.tinPrices?.s5 || 0))
-                + (Number(formData.plasticCounts?.s10 || 0) * Number(formData.plasticPrices?.s10 || 0))
-                + (Number(formData.plasticCounts?.s5 || 0) * Number(formData.plasticPrices?.s5 || 0))
-                + (Number(formData.plasticCounts?.s2 || 0) * Number(formData.plasticPrices?.s2 || 0))
-              ),
-              remainingBalance: roundToTwo(
-                (
-                  (Number(formData.oliveKg) || 0) * (Number(formData.pricePerKg) || 0)
-                  + (Number(formData.tinCounts?.s16 || 0) * Number(formData.tinPrices?.s16 || 0))
-                  + (Number(formData.tinCounts?.s10 || 0) * Number(formData.tinPrices?.s10 || 0))
-                  + (Number(formData.tinCounts?.s5 || 0) * Number(formData.tinPrices?.s5 || 0))
-                  + (Number(formData.plasticCounts?.s10 || 0) * Number(formData.plasticPrices?.s10 || 0))
-                  + (Number(formData.plasticCounts?.s5 || 0) * Number(formData.plasticPrices?.s5 || 0))
-                  + (Number(formData.plasticCounts?.s2 || 0) * Number(formData.plasticPrices?.s2 || 0))
-                  - Number(formData.paymentReceived || 0)
-                  - Number(formData.paymentLoss || 0)
-                )
-              )
-            }}
-          />
-        </div>
+
       </div>
     </div>
   );

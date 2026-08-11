@@ -216,82 +216,96 @@ export function calculateFactorySummary({ transactions, workerExpenses, factoryO
 
 export const printHtml = (htmlContent, title = 'Yazdır') => {
   try {
-    const existingIframe = document.getElementById('app-print-iframe');
-    if (existingIframe) {
-      existingIframe.remove();
-    }
+    // Önceki yazdırma elemanlarını temizle
+    const existingContainer = document.getElementById('app-print-container');
+    if (existingContainer) existingContainer.remove();
+    const existingStyle = document.getElementById('app-print-style');
+    if (existingStyle) existingStyle.remove();
 
-    const iframe = document.createElement('iframe');
-    iframe.id = 'app-print-iframe';
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0px';
-    iframe.style.height = '0px';
-    iframe.style.border = '0px';
-    iframe.style.visibility = 'hidden';
-    document.body.appendChild(iframe);
-
-    const pri = iframe.contentWindow || iframe.contentDocument;
-    const doc = pri.document || pri;
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${title}</title>
-          <style>
-            @media print {
-              @page {
-                size: A5;
-                margin: 8mm;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-            }
-            * {
-              box-sizing: border-box;
-            }
-            body {
-              font-family: Arial, Helvetica, sans-serif;
-              margin: 0;
-              padding: 10px;
-              color: #000;
-              background: #fff;
-            }
-            .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
-            .print-section { margin-bottom: 8px; }
-            .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-            .print-table th, .print-table td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; }
-            .print-table th { background: #f3f3f3; }
-            .print-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-            .print-summary-item { flex: 1 1 40%; min-width: 120px; margin-bottom: 2px; }
-            .print-label { font-weight: bold; }
-            .print-value { margin-left: 4px; }
-            .print-border { border: 2px dashed #333; border-radius: 12px; padding: 18px; max-width: 650px; margin: 0 auto; }
-          </style>
-        </head>
-        <body>
-          ${htmlContent}
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      try {
-        pri.focus();
-        pri.print();
-      } catch (err) {
-        console.error('Yazdırma tetikleme hatası:', err);
+    // @media print CSS: Yazdırma sırasında sadece bizim içeriğimiz görünsün
+    const printStyle = document.createElement('style');
+    printStyle.id = 'app-print-style';
+    printStyle.textContent = `
+      @media print {
+        body > *:not(#app-print-container) {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+        #app-print-container {
+          display: block !important;
+          visibility: visible !important;
+          position: static !important;
+          left: auto !important;
+          top: auto !important;
+          width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+          z-index: 999999 !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        @page {
+          size: A5;
+          margin: 8mm;
+        }
       }
-    }, 250);
+    `;
+    document.head.appendChild(printStyle);
+
+    // İçerik konteynerini oluştur (ekranda görünmez, ama tarayıcı render eder)
+    const container = document.createElement('div');
+    container.id = 'app-print-container';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:148mm;background:#fff;z-index:-1;opacity:0;pointer-events:none;';
+    container.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px;background:#fff;">
+        <style>
+          .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
+          .print-section { margin-bottom: 8px; }
+          .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+          .print-table th, .print-table td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; }
+          .print-table th { background: #f3f3f3; }
+          .print-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+          .print-summary-item { flex: 1 1 40%; min-width: 120px; margin-bottom: 2px; }
+          .print-label { font-weight: bold; }
+          .print-value { margin-left: 4px; }
+          .print-border { border: 2px dashed #333; border-radius: 12px; padding: 18px; max-width: 650px; margin: 0 auto; }
+        </style>
+        ${htmlContent}
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    // Temizleme fonksiyonu
+    const cleanup = () => {
+      setTimeout(() => {
+        const c = document.getElementById('app-print-container');
+        if (c) c.remove();
+        const s = document.getElementById('app-print-style');
+        if (s) s.remove();
+      }, 500);
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    // afterprint olayında temizle
+    window.addEventListener('afterprint', cleanup);
+
+    // Fallback: 60 saniye sonra her durumda temizle
+    setTimeout(() => {
+      const c = document.getElementById('app-print-container');
+      if (c) c.remove();
+      const s = document.getElementById('app-print-style');
+      if (s) s.remove();
+      window.removeEventListener('afterprint', cleanup);
+    }, 60000);
+
+    // İçeriğin render edilmesini bekle, sonra yazdır
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        window.print();
+      }, 150);
+    });
   } catch (err) {
     console.error('Yazdırma hatası:', err);
   }
