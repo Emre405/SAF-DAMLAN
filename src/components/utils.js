@@ -216,51 +216,31 @@ export function calculateFactorySummary({ transactions, workerExpenses, factoryO
 
 export const printHtml = (htmlContent, title = 'Yazdır') => {
   try {
-    // Önceki yazdırma elemanlarını temizle
-    const existingContainer = document.getElementById('app-print-container');
-    if (existingContainer) existingContainer.remove();
-    const existingStyle = document.getElementById('app-print-style');
-    if (existingStyle) existingStyle.remove();
+    // Önceki yazdırma kalıntılarını temizle
+    const existing = document.getElementById('app-print-container');
+    if (existing) existing.remove();
 
-    // @media print CSS: Yazdırma sırasında sadece bizim içeriğimiz görünsün
-    const printStyle = document.createElement('style');
-    printStyle.id = 'app-print-style';
-    printStyle.textContent = `
-      @media print {
-        body > *:not(#app-print-container) {
-          display: none !important;
-          visibility: hidden !important;
-          height: 0 !important;
-          overflow: hidden !important;
-        }
-        #app-print-container {
-          display: block !important;
-          visibility: visible !important;
-          position: static !important;
-          left: auto !important;
-          top: auto !important;
-          width: 100% !important;
-          height: auto !important;
-          overflow: visible !important;
-          z-index: 999999 !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        @page {
-          size: A5;
-          margin: 8mm;
-        }
-      }
-    `;
-    document.head.appendChild(printStyle);
+    // React uygulama kök elementini bul
+    const rootEl = document.getElementById('root');
+    if (!rootEl) return;
 
-    // İçerik konteynerini oluştur (ekranda görünmez, ama tarayıcı render eder)
+    // Orijinal sayfa başlığını kaydet
+    const originalTitle = document.title;
+
+    // React uygulamasını GEÇİCİ OLARAK GİZLE (DOM'a dokunmuyoruz, sadece CSS)
+    rootEl.style.display = 'none';
+
+    // Yazdırma içeriğini GÖRÜNÜR ŞEKİLDE ekle (bu kritik - mobil tarayıcılar
+    // sadece ekranda gerçekten görünen içeriği yazdırabilir)
     const container = document.createElement('div');
     container.id = 'app-print-container';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:148mm;background:#fff;z-index:-1;opacity:0;pointer-events:none;';
     container.innerHTML = `
-      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px;background:#fff;">
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px;background:#fff;max-width:650px;margin:0 auto;">
         <style>
+          @page { size: A5; margin: 8mm; }
+          @media print {
+            body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
           .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
           .print-section { margin-bottom: 8px; }
           .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
@@ -276,38 +256,39 @@ export const printHtml = (htmlContent, title = 'Yazdır') => {
       </div>
     `;
     document.body.appendChild(container);
+    document.title = title;
 
-    // Temizleme fonksiyonu
+    // Temizleme: uygulamayı geri getir, yazdırma div'ini kaldır
     const cleanup = () => {
-      setTimeout(() => {
-        const c = document.getElementById('app-print-container');
-        if (c) c.remove();
-        const s = document.getElementById('app-print-style');
-        if (s) s.remove();
-      }, 500);
+      const c = document.getElementById('app-print-container');
+      if (c) c.remove();
+      if (rootEl) rootEl.style.display = '';
+      document.title = originalTitle;
       window.removeEventListener('afterprint', cleanup);
     };
 
-    // afterprint olayında temizle
+    // Yazdırma diyalogu kapandığında temizle
     window.addEventListener('afterprint', cleanup);
 
-    // Fallback: 60 saniye sonra her durumda temizle
+    // Güvenlik: 2 dakika sonra her şeyi eski haline getir
     setTimeout(() => {
       const c = document.getElementById('app-print-container');
-      if (c) c.remove();
-      const s = document.getElementById('app-print-style');
-      if (s) s.remove();
-      window.removeEventListener('afterprint', cleanup);
-    }, 60000);
+      if (c) cleanup();
+    }, 120000);
 
-    // İçeriğin render edilmesini bekle, sonra yazdır
+    // İçeriğin ekrana çizilmesini bekle, sonra yazdır
     requestAnimationFrame(() => {
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         window.print();
-      }, 150);
+      });
     });
   } catch (err) {
     console.error('Yazdırma hatası:', err);
+    // Hata olursa sayfayı eski haline getir
+    const rootEl = document.getElementById('root');
+    if (rootEl) rootEl.style.display = '';
+    const c = document.getElementById('app-print-container');
+    if (c) c.remove();
   }
 };
 
