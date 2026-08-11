@@ -213,3 +213,140 @@ export function calculateFactorySummary({ transactions, workerExpenses, factoryO
     totalPlasticPurchaseCost
   };
 }
+
+export const printHtml = (htmlContent, title = 'Yazdır') => {
+  try {
+    const existingIframe = document.getElementById('app-print-iframe');
+    if (existingIframe) {
+      existingIframe.remove();
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'app-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = '0px';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const pri = iframe.contentWindow || iframe.contentDocument;
+    const doc = pri.document || pri;
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${title}</title>
+          <style>
+            @media print {
+              @page {
+                size: A5;
+                margin: 8mm;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              margin: 0;
+              padding: 10px;
+              color: #000;
+              background: #fff;
+            }
+            .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
+            .print-section { margin-bottom: 8px; }
+            .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+            .print-table th, .print-table td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; }
+            .print-table th { background: #f3f3f3; }
+            .print-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+            .print-summary-item { flex: 1 1 40%; min-width: 120px; margin-bottom: 2px; }
+            .print-label { font-weight: bold; }
+            .print-value { margin-left: 4px; }
+            .print-border { border: 2px dashed #333; border-radius: 12px; padding: 18px; max-width: 650px; margin: 0 auto; }
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        pri.focus();
+        pri.print();
+      } catch (err) {
+        console.error('Yazdırma tetikleme hatası:', err);
+      }
+    }, 250);
+  } catch (err) {
+    console.error('Yazdırma hatası:', err);
+  }
+};
+
+export const printTransactionReceipt = (t) => {
+  const oliveCost = (Number(t.oliveKg) || 0) * (Number(t.pricePerKg) || 0);
+  const tinCost = (Number(t.tinCounts?.s16 || 0) * Number(t.tinPrices?.s16 || 0)) + (Number(t.tinCounts?.s10 || 0) * Number(t.tinPrices?.s10 || 0)) + (Number(t.tinCounts?.s5 || 0) * Number(t.tinPrices?.s5 || 0));
+  const plasticCost = (Number(t.plasticCounts?.s10 || 0) * Number(t.plasticPrices?.s10 || 0)) + (Number(t.plasticCounts?.s5 || 0) * Number(t.plasticPrices?.s5 || 0)) + (Number(t.plasticCounts?.s2 || 0) * Number(t.plasticPrices?.s2 || 0));
+  const totalCost = t.totalCost !== undefined && t.totalCost !== null ? Number(t.totalCost) : roundToTwo(oliveCost + tinCost + plasticCost);
+  const remainingBalance = roundToTwo(totalCost - (Number(t.paymentReceived) || 0) - (Number(t.paymentLoss) || 0));
+  const formattedDate = t.date ? new Date(t.date).toLocaleDateString('tr-TR') : '';
+  const descriptionText = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+  const oilRatioStr = (Number(t.oliveKg) > 0 && Number(t.oilLitre) > 0) ? (Number(t.oliveKg) / Number(t.oilLitre)).toFixed(2) : '-';
+  const custName = t.customerName || t.customer || '';
+
+  const receiptHtml = `
+    <div style="width: 100%; font-family: Arial, sans-serif; padding: 10px;">
+      <div style="border: 2px dashed #333; border-radius: 12px; padding: 16px; max-width: 100%; margin: 0 auto; background: #fff;">
+        <h2 style="text-align: center; font-weight: 700; font-size: 20px; margin-bottom: 4px; color: #1e3a8a;">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h2>
+        <h3 style="text-align: center; font-weight: 600; font-size: 16px; margin-bottom: 12px; color: #374151;">İşlem Fişi / Makbuz</h3>
+        <table style="width: 100%; margin-bottom: 8px; font-size: 14px;">
+          <tbody>
+            <tr><td style="padding: 2px 0;"><b>Müşteri:</b></td><td style="padding: 2px 0;">${custName}</td></tr>
+            <tr><td style="padding: 2px 0;"><b>Tarih:</b></td><td style="padding: 2px 0;">${formattedDate}</td></tr>
+            <tr><td style="padding: 2px 0;"><b>Açıklama:</b></td><td style="padding: 2px 0;">${descriptionText}</td></tr>
+          </tbody>
+        </table>
+        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;" />
+        <table style="width: 100%; font-size: 14px; margin-bottom: 8px;">
+          <tbody>
+            <tr><td style="padding: 2px 0;">Zeytin (kg):</td><td style="padding: 2px 0;">${formatNumber(t.oliveKg)}</td></tr>
+            <tr><td style="padding: 2px 0;">Çıkan Yağ (L):</td><td style="padding: 2px 0;">${formatNumber(t.oilLitre)}</td></tr>
+            <tr><td style="padding: 2px 0;">Kg Başına Ücret (₺):</td><td style="padding: 2px 0;">${formatNumber(t.pricePerKg)}</td></tr>
+            <tr><td style="padding: 2px 0;">Yağ Oranı:</td><td style="padding: 2px 0;">${oilRatioStr}</td></tr>
+            <tr><td style="padding: 2px 0;">Teneke (16/10/5):</td><td style="padding: 2px 0;">${t.tinCounts?.s16 || 0} / ${t.tinCounts?.s10 || 0} / ${t.tinCounts?.s5 || 0}</td></tr>
+            <tr><td style="padding: 2px 0;">Bidon (10/5/2):</td><td style="padding: 2px 0;">${t.plasticCounts?.s10 || 0} / ${t.plasticCounts?.s5 || 0} / ${t.plasticCounts?.s2 || 0}</td></tr>
+          </tbody>
+        </table>
+        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;" />
+        <table style="width: 100%; font-size: 14px; margin-bottom: 8px;">
+          <tbody>
+            <tr><td style="padding: 2px 0;">Zeytin Sıkım Ücreti:</td><td style="padding: 2px 0;">${formatNumber(oliveCost, ' ₺')}</td></tr>
+            <tr><td style="padding: 2px 0;">Teneke Fiyatı:</td><td style="padding: 2px 0;">${formatNumber(tinCost, ' ₺')}</td></tr>
+            <tr><td style="padding: 2px 0;">Bidon Fiyatı:</td><td style="padding: 2px 0;">${formatNumber(plasticCost, ' ₺')}</td></tr>
+            <tr><td style="padding: 2px 0;"><b>Genel Toplam:</b></td><td style="padding: 2px 0;"><b>${formatNumber(totalCost, ' ₺')}</b></td></tr>
+            <tr><td style="padding: 2px 0;">Alınan Ödeme:</td><td style="padding: 2px 0;">${formatNumber(t.paymentReceived || 0, ' ₺')}</td></tr>
+            <tr><td style="padding: 2px 0;"><b>Kalan Bakiye:</b></td><td style="padding: 2px 0;"><b>${formatNumber(remainingBalance, ' ₺')}</b></td></tr>
+          </tbody>
+        </table>
+        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;" />
+      </div>
+    </div>
+  `;
+
+  printHtml(receiptHtml, `İşlem Fişi - ${custName}`);
+};
+

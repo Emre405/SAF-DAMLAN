@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FormField, TextAreaField } from './FormFields';
 import PrintableReceipt from './PrintableReceipt';
-import { roundToTwo, formatNumber, formatOilRatioDisplay, toInputDateString } from './utils';
+import { roundToTwo, formatNumber, formatOilRatioDisplay, toInputDateString, printHtml, printTransactionReceipt } from './utils';
 
 const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, defaultPrices, onSaveDefaultPrices, isOnline }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -173,27 +173,17 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
   };
 
   const handlePrint = () => {
-    const printContent = receiptRef.current;
-    if (printContent) {
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write('<html><head><title>İşlem Fişi</title>');
-        printWindow.document.write(`
-          <style>
-            @media print {
-              @page { size: A5; margin: 8mm; }
-              body { margin: 0; padding: 0; }
-            }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-          </style>
-        `);
-        printWindow.document.write('</head><body>');
-        printWindow.document.write(printContent.innerHTML);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+    if (receiptRef.current) {
+      printHtml(receiptRef.current.innerHTML, 'İşlem Fişi');
+    } else {
+      const transactionData = {
+        ...formData,
+        customerName: customerSearchTerm,
+        totalCost,
+        oilRatio,
+        remainingBalance,
+      };
+      printTransactionReceipt(transactionData);
     }
   };
 

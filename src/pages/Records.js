@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Calendar, Download, Plus, Edit, Trash2 } from 'lucide-react';
-import { formatNumber, formatOilRatioDisplay } from '../components/utils';
+import { Search, Calendar, Download, Plus, Edit, Trash2, Printer } from 'lucide-react';
+import { formatNumber, formatOilRatioDisplay, printTransactionReceipt } from '../components/utils';
 
 const Records = ({ 
   customers, 
@@ -212,6 +212,7 @@ const Records = ({
                                           <td className="px-4 py-2 whitespace-nowrap text-sm">{formatNumber(t.paymentReceived, ' ₺')}</td>
                                           <td className={`px-4 py-2 whitespace-nowrap text-sm ${remainingBalance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatNumber(remainingBalance, ' ₺')}</td>
                                           <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                                            <button onClick={() => printTransactionReceipt({ ...t, customerName: customer.name })} title="Fiş Yazdır" className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 inline-flex items-center min-h-[32px] mr-1"><Printer className="w-4 h-4" /></button>
                                             <button onClick={() => onEditTransaction(t)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors mr-1" disabled={t.description === 'Ara Tahsilat'}><Edit className="w-4 h-4" /></button>
                                             <button onClick={() => onDeleteTransaction(t.id)} className="text-red-600 p-2 rounded-full hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                                           </td>
@@ -234,61 +235,32 @@ const Records = ({
             {/* MOBİL GÖRÜNÜMÜ */}
             <div className="block md:hidden space-y-4">
               {filteredCustomers.map(customer => (
-                <div key={customer.id} className="border rounded-xl shadow-md p-4 space-y-3 bg-white">
-                  <div className="flex justify-between items-center border-b pb-2">
-                    <button 
-                      onClick={() => navigateToCustomerDetails('customerDetails', customer)} 
-                      className="px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-sm font-bold border border-blue-200 min-h-[32px]"
-                    >
-                      {customer.name}
-                    </button>
+                <div key={customer.id} className="bg-white p-4 rounded-lg border shadow-sm space-y-3">
+                  <div className="flex justify-between items-start border-b pb-2">
+                    <div>
+                      <h3 className="font-bold text-gray-800 text-base">{customer.name}</h3>
+                      <p className="text-xs text-gray-500">{customer.transactions.length} İşlem | {formatNumber(customer.totalOlive, ' kg')} Zeytin</p>
+                    </div>
                     <span className={`text-sm font-bold ${customer.remainingBalance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                       {formatNumber(customer.remainingBalance, ' ₺')}
                     </span>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-1 text-center text-xs text-gray-600 py-1">
-                    <div>
-                      <span className="block text-gray-400">Zeytin</span>
-                      <span className="font-semibold">{formatNumber(customer.totalOlive, ' kg')}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400">Toplam Ücret</span>
-                      <span className="font-semibold">{formatNumber(customer.totalBilled, ' ₺')}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400">Alınan</span>
-                      <span className="font-semibold text-emerald-600">{formatNumber(customer.totalPaid, ' ₺')}</span>
-                    </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2 rounded border">
+                    <div><span className="text-gray-500">Ücret:</span> {formatNumber(customer.totalBilled, ' ₺')}</div>
+                    <div><span className="text-gray-500">Ödenen:</span> {formatNumber(customer.totalPaid, ' ₺')}</div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <button 
-                      onClick={() => setExpandedCustomerId(expandedCustomerId === customer.id ? null : customer.id)}
-                      className="text-xs text-blue-600 font-bold min-h-[36px]"
-                    >
-                      {expandedCustomerId === customer.id ? 'İşlemleri Gizle ▴' : `İşlemleri Gör (${customer.transactions.length}) ▾`}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button onClick={() => onOpenNewTransactionModal({ customerId: customer.id, customerName: customer.name })} className="flex-1 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 min-h-[36px]">İşlem Ekle</button>
+                    <button onClick={() => navigateToCustomerDetails('customerDetails', customer)} className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded hover:bg-gray-300 min-h-[36px]">Detay</button>
+                    <button onClick={() => setExpandedCustomerId(expandedCustomerId === customer.id ? null : customer.id)} className="px-3 py-2 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 min-h-[36px]">
+                      {expandedCustomerId === customer.id ? 'Gizle' : 'İşlemler'}
                     </button>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => onOpenNewTransactionModal({ customerId: customer.id, customerName: customer.name })}
-                        className="px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 min-h-[36px]"
-                      >
-                        İşlem Ekle
-                      </button>
-                      <button 
-                        onClick={() => navigateToCustomerDetails('customerDetails', customer)}
-                        className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 min-h-[36px]"
-                        title="Düzenle / Detaylar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
 
-                  {expandedCustomerId === customer.id && customer.transactions.length > 0 && (
-                    <div className="mt-3 pt-3 border-t bg-gray-50 rounded-lg p-2 space-y-2">
-                      <h4 className="text-xs font-bold text-gray-500 mb-1">Müşteri İşlem Listesi:</h4>
+                  {expandedCustomerId === customer.id && (
+                    <div className="pt-2 border-t space-y-2">
                       {customer.transactions.map(t => {
                         const remainingBalance = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
                         const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
@@ -304,6 +276,7 @@ const Records = ({
                               <span>Ödenen: {formatNumber(t.paymentReceived, ' ₺')}</span>
                             </div>
                             <div className="flex justify-end gap-1 pt-1">
+                              <button onClick={() => printTransactionReceipt({ ...t, customerName: customer.name })} title="Fiş Yazdır" className="p-1 text-blue-600 bg-blue-50 rounded hover:bg-blue-100 min-h-[28px] border border-blue-200"><Printer className="w-3 h-3" /></button>
                               <button onClick={() => onEditTransaction(t)} className="p-1 bg-gray-100 text-gray-600 rounded border hover:bg-gray-200 min-h-[28px]" disabled={t.description === 'Ara Tahsilat'}><Edit className="w-3 h-3" /></button>
                               <button onClick={() => onDeleteTransaction(t.id)} className="p-1 text-red-600 bg-red-50 rounded hover:bg-red-100 min-h-[28px] border border-red-200"><Trash2 className="w-3 h-3" /></button>
                             </div>

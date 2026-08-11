@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
-import { List, Info, Droplet, Percent, DollarSign, Package, Trash2, Edit, Share2 } from 'lucide-react';
+import { List, Info, Droplet, Percent, DollarSign, Package, Trash2, Edit, Share2, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import SummaryCard from '../components/SummaryCard';
-import { formatNumber, formatOilRatioDisplay, roundToTwo } from '../components/utils';
+import { formatNumber, formatOilRatioDisplay, roundToTwo, printHtml, printTransactionReceipt } from '../components/utils';
 
 const CustomerDetails = ({ 
   customer, 
@@ -16,57 +16,56 @@ const CustomerDetails = ({
   const printRef = useRef();
 
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (printContent) {
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write('<html><head><title>Müşteri Detayları</title>');
-      printWindow.document.write(`
-        <style>
-          @media print { @page { size: A5; margin: 10mm; } }
-          body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-          .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
-          .print-section { margin-bottom: 8px; }
-          .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-          .print-table th, .print-table td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; }
-          .print-table th { background: #f3f3f3; }
-          .print-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-          .print-summary-item { flex: 1 1 40%; min-width: 120px; margin-bottom: 2px; }
-          .print-label { font-weight: bold; }
-          .print-value { margin-left: 4px; }
-          .print-border { border:2px dashed #333; border-radius:12px; padding:18px; max-width:650px; margin:0 auto; }
-        </style>
-      `);
-      printWindow.document.write('</head><body>');
-      printWindow.document.write('<div class="print-border">');
-      printWindow.document.write('<div class="print-header">SAF DAMLA ZEYTİNYAĞI FABRİKASI</div>');
-      printWindow.document.write('<div class="print-section print-summary">');
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Müşteri:</span><span class="print-value">${customer.name}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Toplam İşlem:</span><span class="print-value">${transactions.length}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">İşlenen Zeytin:</span><span class="print-value">${formatNumber(totalOliveProcessed, ' kg')}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Üretilen Yağ:</span><span class="print-value">${formatNumber(totalOilProduced, ' L')}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Yağ Oranı:</span><span class="print-value">${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Toplam Ücret:</span><span class="print-value">${formatNumber(totalBilledAmount, ' ₺')}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Alınan Ödeme:</span><span class="print-value">${formatNumber(totalPaymentReceived, ' ₺')}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Kalan Bakiye:</span><span class="print-value">${formatNumber(remainingBalance, ' ₺')}</span></div>`);
-      printWindow.document.write(`<div class="print-summary-item"><span class="print-label">Kullanılan Kaplar:</span><span class="print-value">Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</span></div>`);
-      printWindow.document.write('</div>');
-      
-      printWindow.document.write('<div class="print-section"><div class="print-label" style="margin-bottom:4px;">İşlem Geçmişi</div>');
-      printWindow.document.write('<table class="print-table"><thead><tr><th>Tarih</th><th>Açıklama</th><th>Ücret</th><th>Alınan</th><th>Bakiye</th></tr></thead><tbody>');
-      transactions.forEach(t => {
-        const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
-        const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-        printWindow.document.write(`<tr><td>${new Date(t.date).toLocaleDateString()}</td><td>${description}</td><td>${formatNumber(t.totalCost, ' ₺')}</td><td>${formatNumber(t.paymentReceived, ' ₺')}</td><td>${formatNumber(bakiye, ' ₺')}</td></tr>`);
-      });
-      printWindow.document.write('</tbody></table></div>');
-      printWindow.document.write('</div>');
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 300);
-    }
+    if (!customer) return;
+
+    const totalOliveProcessed = transactions.reduce((sum, t) => sum + (Number(t.oliveKg) || 0), 0);
+    const totalOilProduced = transactions.reduce((sum, t) => sum + (Number(t.oilLitre) || 0), 0);
+    const totalBilledAmount = transactions.reduce((sum, t) => sum + (Number(t.totalCost) || 0), 0);
+    const totalPaymentReceived = transactions.reduce((sum, t) => sum + (Number(t.paymentReceived) || 0), 0);
+    const totalPaymentLoss = transactions.reduce((sum, t) => sum + (Number(t.paymentLoss) || 0), 0);
+    const remainingBalance = totalBilledAmount - totalPaymentReceived - totalPaymentLoss;
+
+    let totalTinCount = 0;
+    let totalPlasticCount = 0;
+    transactions.forEach(t => {
+      totalTinCount += (Number(t.tinCounts?.s16 || 0) + Number(t.tinCounts?.s10 || 0) + Number(t.tinCounts?.s5 || 0));
+      totalPlasticCount += (Number(t.plasticCounts?.s10 || 0) + Number(t.plasticCounts?.s5 || 0) + Number(t.plasticCounts?.s2 || 0));
+    });
+
+    const printContent = `
+      <div class="print-border">
+        <div class="print-header">SAF DAMLA ZEYTİNYAĞI FABRİKASI</div>
+        <div class="print-section print-summary">
+          <div class="print-summary-item"><span class="print-label">Müşteri:</span><span class="print-value">${customer.name}</span></div>
+          <div class="print-summary-item"><span class="print-label">Toplam İşlem:</span><span class="print-value">${transactions.length}</span></div>
+          <div class="print-summary-item"><span class="print-label">İşlenen Zeytin:</span><span class="print-value">${formatNumber(totalOliveProcessed, ' kg')}</span></div>
+          <div class="print-summary-item"><span class="print-label">Üretilen Yağ:</span><span class="print-value">${formatNumber(totalOilProduced, ' L')}</span></div>
+          <div class="print-summary-item"><span class="print-label">Yağ Oranı:</span><span class="print-value">${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</span></div>
+          <div class="print-summary-item"><span class="print-label">Toplam Ücret:</span><span class="print-value">${formatNumber(totalBilledAmount, ' ₺')}</span></div>
+          <div class="print-summary-item"><span class="print-label">Alınan Ödeme:</span><span class="print-value">${formatNumber(totalPaymentReceived, ' ₺')}</span></div>
+          <div class="print-summary-item"><span class="print-label">Kalan Bakiye:</span><span class="print-value">${formatNumber(remainingBalance, ' ₺')}</span></div>
+          <div class="print-summary-item"><span class="print-label">Kullanılan Kaplar:</span><span class="print-value">Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</span></div>
+        </div>
+        
+        <div class="print-section">
+          <div class="print-label" style="margin-bottom:4px; font-size:1.1rem; font-weight:bold;">İşlem Geçmişi</div>
+          <table class="print-table">
+            <thead>
+              <tr><th>Tarih</th><th>Açıklama</th><th>Ücret</th><th>Alınan</th><th>Bakiye</th></tr>
+            </thead>
+            <tbody>
+              ${transactions.map(t => {
+                const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
+                const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+                return `<tr><td>${new Date(t.date).toLocaleDateString('tr-TR')}</td><td>${description}</td><td>${formatNumber(t.totalCost, ' ₺')}</td><td>${formatNumber(t.paymentReceived, ' ₺')}</td><td>${formatNumber(bakiye, ' ₺')}</td></tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    printHtml(printContent, `Müşteri Detayları - ${customer.name}`);
   };
 
   const handleDownloadPDF = async () => {
@@ -284,6 +283,7 @@ const CustomerDetails = ({
                           <td className="px-6 py-4 whitespace-nowrap text-emerald-600">{formatNumber(t.paymentReceived, ' ₺')}</td>
                           <td className={`px-6 py-4 whitespace-nowrap font-semibold ${remainingBalance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatNumber(remainingBalance, ' ₺')}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onClick={() => printTransactionReceipt({ ...t, customerName: customer.name })} title="Fiş Yazdır" className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 inline-flex items-center min-h-[32px] mr-2"><Printer className="w-4 h-4" /></button>
                             <button onClick={() => onEditTransaction(t)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors mr-2 inline-flex items-center min-h-[32px]" disabled={t.description === 'Ara Tahsilat'}><Edit className="w-4 h-4" /></button>
                             <button onClick={() => onDeleteTransaction(t.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100 inline-flex items-center min-h-[32px]"><Trash2 className="w-4 h-4" /></button>
                           </td>
@@ -315,6 +315,13 @@ const CustomerDetails = ({
                         <span>Alınan: {formatNumber(t.paymentReceived, ' ₺')}</span>
                       </div>
                       <div className="flex justify-end gap-2 border-t pt-2 mt-2">
+                        <button 
+                          onClick={() => printTransactionReceipt({ ...t, customerName: customer.name })} 
+                          className="flex items-center space-x-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg text-xs min-h-[36px]"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Fiş</span>
+                        </button>
                         <button 
                           onClick={() => onEditTransaction(t)} 
                           className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 border hover:bg-gray-200 rounded-lg text-xs min-h-[36px]"
