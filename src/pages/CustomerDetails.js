@@ -33,31 +33,58 @@ const CustomerDetails = ({
     });
 
     const printContent = `
-      <div class="print-border">
-        <div class="print-header">SAF DAMLA ZEYTİNYAĞI FABRİKASI</div>
-        <div class="print-section print-summary">
-          <div class="print-summary-item"><span class="print-label">Müşteri:</span><span class="print-value">${customer.name}</span></div>
-          <div class="print-summary-item"><span class="print-label">Toplam İşlem:</span><span class="print-value">${transactions.length}</span></div>
-          <div class="print-summary-item"><span class="print-label">İşlenen Zeytin:</span><span class="print-value">${formatNumber(totalOliveProcessed, ' kg')}</span></div>
-          <div class="print-summary-item"><span class="print-label">Üretilen Yağ:</span><span class="print-value">${formatNumber(totalOilProduced, ' L')}</span></div>
-          <div class="print-summary-item"><span class="print-label">Yağ Oranı:</span><span class="print-value">${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</span></div>
-          <div class="print-summary-item"><span class="print-label">Toplam Ücret:</span><span class="print-value">${formatNumber(totalBilledAmount, ' ₺')}</span></div>
-          <div class="print-summary-item"><span class="print-label">Alınan Ödeme:</span><span class="print-value">${formatNumber(totalPaymentReceived, ' ₺')}</span></div>
-          <div class="print-summary-item"><span class="print-label">Kalan Bakiye:</span><span class="print-value">${formatNumber(remainingBalance, ' ₺')}</span></div>
-          <div class="print-summary-item"><span class="print-label">Kullanılan Kaplar:</span><span class="print-value">Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</span></div>
-        </div>
+      <div style="border: 2px dashed #333; border-radius: 12px; padding: 18px; max-width: 650px; margin: 0 auto; background: #fff; font-family: Arial, sans-serif;">
+        <h2 style="text-align: center; font-size: 1.5rem; font-weight: bold; margin-top: 0; margin-bottom: 14px; letter-spacing: 1px; color: #000;">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h2>
         
-        <div class="print-section">
-          <div class="print-label" style="margin-bottom:4px; font-size:1.1rem; font-weight:bold;">İşlem Geçmişi</div>
-          <table class="print-table">
+        <table style="width: 100%; margin-bottom: 14px; font-size: 0.95rem; border-collapse: collapse; color: #000;">
+          <tbody>
+            <tr>
+              <td style="padding: 3px 0; width: 50%;"><b>Müşteri:</b> <span style="margin-left: 4px;">${customer.name}</span></td>
+              <td style="padding: 3px 0; width: 50%;"><b>Toplam İşlem:</b> <span style="margin-left: 4px;">${transactions.length}</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 0;"><b>İşlenen Zeytin:</b> <span style="margin-left: 4px;">${formatNumber(totalOliveProcessed, 'kg')}</span></td>
+              <td style="padding: 3px 0;"><b>Üretilen Yağ:</b> <span style="margin-left: 4px;">${formatNumber(totalOilProduced, 'L')}</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 0;"><b>Yağ Oranı:</b> <span style="margin-left: 4px;">${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</span></td>
+              <td style="padding: 3px 0;"><b>Toplam Ücret:</b> <span style="margin-left: 4px;">${formatNumber(totalBilledAmount, '₺')}</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 0;"><b>Alınan Ödeme:</b> <span style="margin-left: 4px;">${formatNumber(totalPaymentReceived, '₺')}</span></td>
+              <td style="padding: 3px 0;"><b>Kalan Bakiye:</b> <span style="margin-left: 4px;">${formatNumber(remainingBalance, '₺')}</span></td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding: 3px 0;"><b>Kullanılan Kaplar:</b> <span style="margin-left: 4px;">Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style="margin-top: 14px;">
+          <h3 style="font-size: 1.1rem; font-weight: bold; margin-top: 0; margin-bottom: 8px; color: #000;">İşlem Geçmişi</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; color: #000;">
             <thead>
-              <tr><th>Tarih</th><th>Açıklama</th><th>Ücret</th><th>Alınan</th><th>Bakiye</th></tr>
+              <tr style="background-color: #f3f3f3;">
+                <th style="border: 1px solid #bbb; padding: 5px 6px; text-align: left;">Tarih</th>
+                <th style="border: 1px solid #bbb; padding: 5px 6px; text-align: left;">Açıklama</th>
+                <th style="border: 1px solid #bbb; padding: 5px 6px; text-align: right;">Ücret</th>
+                <th style="border: 1px solid #bbb; padding: 5px 6px; text-align: right;">Alınan</th>
+                <th style="border: 1px solid #bbb; padding: 5px 6px; text-align: right;">Bakiye</th>
+              </tr>
             </thead>
             <tbody>
               ${transactions.map(t => {
                 const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
                 const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-                return `<tr><td>${new Date(t.date).toLocaleDateString('tr-TR')}</td><td>${description}</td><td>${formatNumber(t.totalCost, ' ₺')}</td><td>${formatNumber(t.paymentReceived, ' ₺')}</td><td>${formatNumber(bakiye, ' ₺')}</td></tr>`;
+                return `
+                  <tr>
+                    <td style="border: 1px solid #bbb; padding: 4px 6px;">${new Date(t.date).toLocaleDateString('tr-TR')}</td>
+                    <td style="border: 1px solid #bbb; padding: 4px 6px;">${description}</td>
+                    <td style="border: 1px solid #bbb; padding: 4px 6px; text-align: right;">${formatNumber(t.totalCost, '₺')}</td>
+                    <td style="border: 1px solid #bbb; padding: 4px 6px; text-align: right;">${formatNumber(t.paymentReceived, '₺')}</td>
+                    <td style="border: 1px solid #bbb; padding: 4px 6px; text-align: right;">${formatNumber(bakiye, '₺')}</td>
+                  </tr>
+                `;
               }).join('')}
             </tbody>
           </table>

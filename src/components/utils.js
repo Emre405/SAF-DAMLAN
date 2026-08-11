@@ -216,79 +216,33 @@ export function calculateFactorySummary({ transactions, workerExpenses, factoryO
 
 export const printHtml = (htmlContent, title = 'Yazdır') => {
   try {
-    // Önceki yazdırma kalıntılarını temizle
-    const existing = document.getElementById('app-print-container');
-    if (existing) existing.remove();
+    let container = document.getElementById('app-print-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'app-print-container';
+      document.body.appendChild(container);
+    }
 
-    // React uygulama kök elementini bul
-    const rootEl = document.getElementById('root');
-    if (!rootEl) return;
-
-    // Orijinal sayfa başlığını kaydet
     const originalTitle = document.title;
+    if (title) document.title = title;
 
-    // React uygulamasını GEÇİCİ OLARAK GİZLE (DOM'a dokunmuyoruz, sadece CSS)
-    rootEl.style.display = 'none';
-
-    // Yazdırma içeriğini GÖRÜNÜR ŞEKİLDE ekle (bu kritik - mobil tarayıcılar
-    // sadece ekranda gerçekten görünen içeriği yazdırabilir)
-    const container = document.createElement('div');
-    container.id = 'app-print-container';
     container.innerHTML = `
-      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px;background:#fff;max-width:650px;margin:0 auto;">
-        <style>
-          @page { size: A5; margin: 8mm; }
-          @media print {
-            body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          }
-          .print-header { text-align: center; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
-          .print-section { margin-bottom: 8px; }
-          .print-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-          .print-table th, .print-table td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; }
-          .print-table th { background: #f3f3f3; }
-          .print-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-          .print-summary-item { flex: 1 1 40%; min-width: 120px; margin-bottom: 2px; }
-          .print-label { font-weight: bold; }
-          .print-value { margin-left: 4px; }
-          .print-border { border: 2px dashed #333; border-radius: 12px; padding: 18px; max-width: 650px; margin: 0 auto; }
-        </style>
+      <div style="font-family: Arial, Helvetica, sans-serif; color: #000; padding: 10px; background: #fff; max-width: 650px; margin: 0 auto;">
         ${htmlContent}
       </div>
     `;
-    document.body.appendChild(container);
-    document.title = title;
 
-    // Temizleme: uygulamayı geri getir, yazdırma div'ini kaldır
-    const cleanup = () => {
-      const c = document.getElementById('app-print-container');
-      if (c) c.remove();
-      if (rootEl) rootEl.style.display = '';
-      document.title = originalTitle;
-      window.removeEventListener('afterprint', cleanup);
-    };
-
-    // Yazdırma diyalogu kapandığında temizle
-    window.addEventListener('afterprint', cleanup);
-
-    // Güvenlik: 2 dakika sonra her şeyi eski haline getir
     setTimeout(() => {
-      const c = document.getElementById('app-print-container');
-      if (c) cleanup();
-    }, 120000);
-
-    // İçeriğin ekrana çizilmesini bekle, sonra yazdır
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+      try {
         window.print();
-      });
-    });
+      } catch (err) {
+        console.error('Yazdırma tetikleme hatası:', err);
+      } finally {
+        if (title) document.title = originalTitle;
+      }
+    }, 150);
   } catch (err) {
     console.error('Yazdırma hatası:', err);
-    // Hata olursa sayfayı eski haline getir
-    const rootEl = document.getElementById('root');
-    if (rootEl) rootEl.style.display = '';
-    const c = document.getElementById('app-print-container');
-    if (c) c.remove();
   }
 };
 
