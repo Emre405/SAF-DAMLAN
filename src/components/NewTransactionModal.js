@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { FormField, TextAreaField } from './FormFields';
+import { FormField } from './FormFields';
 import PrintableReceipt from './PrintableReceipt';
-import { roundToTwo, formatNumber, formatOilRatioDisplay, toInputDateString, printHtml, printTransactionReceipt } from './utils';
+import { roundToTwo, formatNumber, toInputDateString, printHtml, printTransactionReceipt } from './utils';
 
 const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, defaultPrices, onSaveDefaultPrices, isOnline }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');

@@ -3,7 +3,7 @@ import { List, Info, Droplet, Percent, DollarSign, Package, Trash2, Edit, Share2
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import SummaryCard from '../components/SummaryCard';
-import { formatNumber, formatOilRatioDisplay, roundToTwo, printHtml, printTransactionReceipt } from '../components/utils';
+import { formatNumber, formatOilRatioDisplay, printHtml, printTransactionReceipt } from '../components/utils';
 
 const CustomerDetails = ({ 
   customer, 
