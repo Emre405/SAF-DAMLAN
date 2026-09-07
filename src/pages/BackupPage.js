@@ -633,6 +633,29 @@ const BackupPage = ({
 
       <!-- TENEKE ALIM & STOK PANELİ -->
       <div id="panel-tenekestok" class="tab-panel space-y-4">
+        <!-- Teneke Stok Durumu (Üstte) -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-4">Teneke Stok Durumu</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            ${['s16','s10','s5'].map(sz => {
+              const s = detTeneke[sz];
+              return `<div class="p-3 bg-slate-50 rounded-xl border text-center">
+                <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}lık Teneke</p>
+                <div class="grid grid-cols-3 gap-1 text-xs">
+                  <div><span class="text-slate-400 block">Alınan</span><span class="font-bold">${s.alinan}</span></div>
+                  <div><span class="text-slate-400 block">Kullanılan</span><span class="font-bold">${s.kullanilan}</span></div>
+                  <div><span class="text-slate-400 block">Kalan</span><span class="font-bold text-emerald-600">${s.kalan}</span></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 font-semibold">Değer: ${formatNumber(s.maliyet_kalan,' ₺')}</p>
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-center font-bold text-orange-800">
+            Toplam Kalan Teneke Stok Değeri: ${formatNumber(tenekeStokVal,' ₺')}
+          </div>
+        </div>
+
+        <!-- Teneke Alımları (Altta) -->
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
           <h3 class="font-bold text-slate-800 mb-3">Teneke Alımları (${tinP.length} kayıt · Toplam: ${formatNumber(totalTinCost,' ₺')})</h3>
           <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
@@ -656,15 +679,18 @@ const BackupPage = ({
             </tbody>
           </table></div>
         </div>
+      </div>
 
-        <!-- Teneke Stok Durumu (panel-tenekestok içinde) -->
+      <!-- BİDON ALIM & STOK PANELİ -->
+      <div id="panel-bidonstok" class="tab-panel space-y-4">
+        <!-- Bidon Stok Durumu (Üstte) -->
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
-          <h3 class="font-bold text-slate-800 mb-4">Teneke Stok Durumu</h3>
+          <h3 class="font-bold text-slate-800 mb-4">Bidon Stok Durumu</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            ${['s16','s10','s5'].map(sz => {
-              const s = detTeneke[sz];
+            ${['s10','s5','s2'].map(sz => {
+              const s = detBidon[sz];
               return `<div class="p-3 bg-slate-50 rounded-xl border text-center">
-                <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}lık Teneke</p>
+                <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}luk Bidon</p>
                 <div class="grid grid-cols-3 gap-1 text-xs">
                   <div><span class="text-slate-400 block">Alınan</span><span class="font-bold">${s.alinan}</span></div>
                   <div><span class="text-slate-400 block">Kullanılan</span><span class="font-bold">${s.kullanilan}</span></div>
@@ -674,14 +700,12 @@ const BackupPage = ({
               </div>`;
             }).join('')}
           </div>
-          <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-center font-bold text-orange-800">
-            Toplam Kalan Teneke Stok Değeri: ${formatNumber(tenekeStokVal,' ₺')}
+          <div class="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-xl text-center font-bold text-teal-800">
+            Toplam Kalan Bidon Stok Değeri: ${formatNumber(bidonStokVal,' ₺')}
           </div>
         </div>
-      </div>
 
-      <!-- BİDON ALIM & STOK PANELİ -->
-      <div id="panel-bidonstok" class="tab-panel space-y-4">
+        <!-- Bidon Alımları (Altta) -->
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
           <h3 class="font-bold text-slate-800 mb-3">Bidon Alımları (${plasP.length} kayıt · Toplam: ${formatNumber(totalPlasCost,' ₺')})</h3>
           <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
@@ -705,28 +729,6 @@ const BackupPage = ({
             </tbody>
           </table></div>
         </div>
-
-        <!-- Bidon Stok Durumu (panel-bidonstok içinde) -->
-        <div class="bg-white p-5 rounded-2xl border shadow-sm">
-          <h3 class="font-bold text-slate-800 mb-4">Bidon Stok Durumu</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            ${['s10','s5','s2'].map(sz => {
-              const s = detBidon[sz];
-              return `<div class="p-3 bg-slate-50 rounded-xl border text-center">
-                <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}luk Bidon</p>
-                <div class="grid grid-cols-3 gap-1 text-xs">
-                  <div><span class="text-slate-400 block">Alınan</span><span class="font-bold">${s.alinan}</span></div>
-                  <div><span class="text-slate-400 block">Kullanılan</span><span class="font-bold">${s.kullanilan}</span></div>
-                  <div><span class="text-slate-400 block">Kalan</span><span class="font-bold text-emerald-600">${s.kalan}</span></div>
-                </div>
-                <p class="text-xs text-slate-500 mt-2 font-semibold">Değer: ${formatNumber(s.maliyet_kalan,' ₺')}</p>
-              </div>`;
-            }).join('')}
-          </div>
-          <div class="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-xl text-center font-bold text-teal-800">
-            Toplam Kalan Bidon Stok Değeri: ${formatNumber(bidonStokVal,' ₺')}
-          </div>
-        </div>
       </div>
     </div>
 
@@ -741,8 +743,9 @@ const BackupPage = ({
     function switchTab(name) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
+      const allColorClasses = ['bg-rose-600','bg-emerald-600','bg-orange-600','bg-amber-600','bg-lime-600','bg-blue-600','bg-teal-600','bg-purple-600','bg-slate-600','text-white','shadow'];
       document.querySelectorAll('.tab-main-btn').forEach(b => {
-        b.classList.remove('bg-rose-600','bg-emerald-600','bg-blue-600','bg-purple-600','text-white','shadow');
+        b.classList.remove(...allColorClasses);
         b.classList.add('bg-white','border','text-slate-700');
       });
       const btn = document.getElementById('tab-btn-' + name);
