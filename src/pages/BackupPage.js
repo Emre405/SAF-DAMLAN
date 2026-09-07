@@ -1,834 +1,828 @@
 import React from 'react';
-import { Download } from 'lucide-react';
+import { Download, FileText, Globe, AlertTriangle } from 'lucide-react';
 import { formatNumber } from '../components/utils';
 
-const BackupPage = ({ 
-  customers, 
-  transactions, 
-  workerExpenses, 
-  factoryOverhead, 
-  pomaceRevenues, 
-  tinPurchases, 
-  plasticPurchases, 
-  oilPurchases, 
-  oilSales, 
-  readUserData 
+const BackupPage = ({
+  customers,
+  transactions,
+  workerExpenses,
+  factoryOverhead,
+  pomaceRevenues,
+  tinPurchases,
+  plasticPurchases,
+  oilPurchases,
+  oilSales,
+  readUserData
 }) => {
-  
-  // Detaylı teneke/bidon stok ve maliyet yardımcı fonksiyonları (dosya içinde kullanılacak)
-  function hesaplaDetayliStokDegeri(tinPurchases, transactions) {
+
+  /* ─── YARDIMCI FONKSİYONLAR ─── */
+  function hesaplaDetayliTenekeStok(tinPurchases, transactions) {
     let toplamAlinan = { s16: 0, s10: 0, s5: 0 };
     let toplamMaliyet = { s16: 0, s10: 0, s5: 0 };
     tinPurchases.forEach(p => {
       toplamAlinan.s16 += Number(p.s16 || 0);
       toplamAlinan.s10 += Number(p.s10 || 0);
-      toplamAlinan.s5 += Number(p.s5 || 0);
-      toplamMaliyet.s16 += (Number(p.s16 || 0) * Number(p.tinPrice || 0));
-      toplamMaliyet.s10 += (Number(p.s10 || 0) * Number(p.tinPrice || 0));
-      toplamMaliyet.s5 += (Number(p.s5 || 0) * Number(p.tinPrice || 0));
+      toplamAlinan.s5  += Number(p.s5  || 0);
+      toplamMaliyet.s16 += Number(p.s16 || 0) * Number(p.tinPrice || 0);
+      toplamMaliyet.s10 += Number(p.s10 || 0) * Number(p.tinPrice || 0);
+      toplamMaliyet.s5  += Number(p.s5  || 0) * Number(p.tinPrice || 0);
     });
-    const ortMaliyet = {
+    const ort = {
       s16: toplamAlinan.s16 > 0 ? toplamMaliyet.s16 / toplamAlinan.s16 : 0,
       s10: toplamAlinan.s10 > 0 ? toplamMaliyet.s10 / toplamAlinan.s10 : 0,
-      s5: toplamAlinan.s5 > 0 ? toplamMaliyet.s5 / toplamAlinan.s5 : 0,
+      s5:  toplamAlinan.s5  > 0 ? toplamMaliyet.s5  / toplamAlinan.s5  : 0,
     };
     let kullanilan = { s16: 0, s10: 0, s5: 0 };
     transactions.forEach(t => {
       kullanilan.s16 += Number(t.tinCounts?.s16 || 0);
       kullanilan.s10 += Number(t.tinCounts?.s10 || 0);
-      kullanilan.s5 += Number(t.tinCounts?.s5 || 0);
+      kullanilan.s5  += Number(t.tinCounts?.s5  || 0);
     });
-    let kalan = {
-      s16: toplamAlinan.s16 - kullanilan.s16,
-      s10: toplamAlinan.s10 - kullanilan.s10,
-      s5: toplamAlinan.s5 - kullanilan.s5,
-    };
     return {
-      s16: { alinan: toplamAlinan.s16, kullanilan: kullanilan.s16, kalan: kalan.s16, maliyet_kalan: kalan.s16 * ortMaliyet.s16 },
-      s10: { alinan: toplamAlinan.s10, kullanilan: kullanilan.s10, kalan: kalan.s10, maliyet_kalan: kalan.s10 * ortMaliyet.s10 },
-      s5: { alinan: toplamAlinan.s5, kullanilan: kullanilan.s5, kalan: kalan.s5, maliyet_kalan: kalan.s5 * ortMaliyet.s5 },
+      s16: { alinan: toplamAlinan.s16, kullanilan: kullanilan.s16, kalan: toplamAlinan.s16 - kullanilan.s16, maliyet_kalan: (toplamAlinan.s16 - kullanilan.s16) * ort.s16 },
+      s10: { alinan: toplamAlinan.s10, kullanilan: kullanilan.s10, kalan: toplamAlinan.s10 - kullanilan.s10, maliyet_kalan: (toplamAlinan.s10 - kullanilan.s10) * ort.s10 },
+      s5:  { alinan: toplamAlinan.s5,  kullanilan: kullanilan.s5,  kalan: toplamAlinan.s5  - kullanilan.s5,  maliyet_kalan: (toplamAlinan.s5  - kullanilan.s5)  * ort.s5  },
     };
   }
 
-  function hesaplaDetayliBidonStokDegeri(plasticPurchases, transactions) {
+  function hesaplaDetayliBidonStok(plasticPurchases, transactions) {
     let toplamAlinan = { s10: 0, s5: 0, s2: 0 };
     let toplamMaliyet = { s10: 0, s5: 0, s2: 0 };
     plasticPurchases.forEach(p => {
       toplamAlinan.s10 += Number(p.s10 || 0);
-      toplamAlinan.s5 += Number(p.s5 || 0);
-      toplamAlinan.s2 += Number(p.s2 || 0);
-      toplamMaliyet.s10 += (Number(p.s10 || 0) * Number(p.plasticPrice || 0));
-      toplamMaliyet.s5 += (Number(p.s5 || 0) * Number(p.plasticPrice || 0));
-      toplamMaliyet.s2 += (Number(p.s2 || 0) * Number(p.plasticPrice || 0));
+      toplamAlinan.s5  += Number(p.s5  || 0);
+      toplamAlinan.s2  += Number(p.s2  || 0);
+      toplamMaliyet.s10 += Number(p.s10 || 0) * Number(p.plasticPrice || 0);
+      toplamMaliyet.s5  += Number(p.s5  || 0) * Number(p.plasticPrice || 0);
+      toplamMaliyet.s2  += Number(p.s2  || 0) * Number(p.plasticPrice || 0);
     });
-    const ortMaliyet = {
+    const ort = {
       s10: toplamAlinan.s10 > 0 ? toplamMaliyet.s10 / toplamAlinan.s10 : 0,
-      s5: toplamAlinan.s5 > 0 ? toplamMaliyet.s5 / toplamAlinan.s5 : 0,
-      s2: toplamAlinan.s2 > 0 ? toplamMaliyet.s2 / toplamAlinan.s2 : 0,
+      s5:  toplamAlinan.s5  > 0 ? toplamMaliyet.s5  / toplamAlinan.s5  : 0,
+      s2:  toplamAlinan.s2  > 0 ? toplamMaliyet.s2  / toplamAlinan.s2  : 0,
     };
     let kullanilan = { s10: 0, s5: 0, s2: 0 };
     transactions.forEach(t => {
       kullanilan.s10 += Number(t.plasticCounts?.s10 || 0);
-      kullanilan.s5 += Number(t.plasticCounts?.s5 || 0);
-      kullanilan.s2 += Number(t.plasticCounts?.s2 || 0);
+      kullanilan.s5  += Number(t.plasticCounts?.s5  || 0);
+      kullanilan.s2  += Number(t.plasticCounts?.s2  || 0);
     });
-    let kalan = {
-      s10: toplamAlinan.s10 - kullanilan.s10,
-      s5: toplamAlinan.s5 - kullanilan.s5,
-      s2: toplamAlinan.s2 - kullanilan.s2,
-    };
     return {
-      s10: { alinan: toplamAlinan.s10, kullanilan: kullanilan.s10, kalan: kalan.s10, maliyet_kalan: kalan.s10 * ortMaliyet.s10 },
-      s5: { alinan: toplamAlinan.s5, kullanilan: kullanilan.s5, kalan: kalan.s5, maliyet_kalan: kalan.s5 * ortMaliyet.s5 },
-      s2: { alinan: toplamAlinan.s2, kullanilan: kullanilan.s2, kalan: kalan.s2, maliyet_kalan: kalan.s2 * ortMaliyet.s2 },
+      s10: { alinan: toplamAlinan.s10, kullanilan: kullanilan.s10, kalan: toplamAlinan.s10 - kullanilan.s10, maliyet_kalan: (toplamAlinan.s10 - kullanilan.s10) * ort.s10 },
+      s5:  { alinan: toplamAlinan.s5,  kullanilan: kullanilan.s5,  kalan: toplamAlinan.s5  - kullanilan.s5,  maliyet_kalan: (toplamAlinan.s5  - kullanilan.s5)  * ort.s5  },
+      s2:  { alinan: toplamAlinan.s2,  kullanilan: kullanilan.s2,  kalan: toplamAlinan.s2  - kullanilan.s2,  maliyet_kalan: (toplamAlinan.s2  - kullanilan.s2)  * ort.s2  },
     };
   }
 
+  /* ─── TXT YEDEKLEME ─── */
   const handleDownloadTxt = async () => {
     try {
       const allData = await readUserData();
+      const trans  = allData.transactions    || [];
+      const wexp   = allData.workerExpenses  || [];
+      const fover  = allData.factoryOverhead || [];
+      const pomace = allData.pomaceRevenues  || [];
+      const tinP   = allData.tinPurchases    || [];
+      const plasP  = allData.plasticPurchases|| [];
+      const oilP   = allData.oilPurchases    || [];
+      const oilS   = allData.oilSales        || [];
 
-      const totalBilledAmount = allData.transactions.reduce((sum, t) => sum + Number(t.totalCost || 0), 0);
-      const totalReceivedPayment = allData.transactions.reduce((sum, t) => sum + Number(t.paymentReceived || 0), 0);
-      const totalPaymentLoss = allData.transactions.reduce((sum, t) => sum + Number(t.paymentLoss || 0), 0);
-      const pendingPayments = totalBilledAmount - totalReceivedPayment - totalPaymentLoss;
+      /* ── DASHBOARD METRİKLERİ ── */
+      const toplamZeytin   = trans.reduce((s,t) => s + Number(t.oliveKg   || 0), 0);
+      const toplamYag      = trans.reduce((s,t) => s + Number(t.oilLitre  || 0), 0);
+      const genel_oran     = toplamYag > 0 ? (toplamZeytin / toplamYag).toFixed(2) : '-';
 
-      const totalFactoryWorkerExpenses = allData.workerExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-      const totalFactoryOverheadExpenses = allData.factoryOverhead.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-      const totalFactoryPomaceRevenues = allData.pomaceRevenues.reduce((sum, revenue) => sum + Number(revenue.totalRevenue || 0), 0);
-      const totalTinPurchaseCost = allData.tinPurchases.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-      const totalPlasticPurchaseCost = allData.plasticPurchases.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
+      const oliveIncome    = trans.reduce((s,t) => s + Number(t.oliveKg || 0) * Number(t.pricePerKg || 0), 0);
+      const tinIncome      = trans.reduce((s,t) =>
+        s + (Number(t.tinCounts?.s16||0)*Number(t.tinPrices?.s16||0))
+          + (Number(t.tinCounts?.s10||0)*Number(t.tinPrices?.s10||0))
+          + (Number(t.tinCounts?.s5 ||0)*Number(t.tinPrices?.s5 ||0)), 0);
+      const plasticIncome  = trans.reduce((s,t) =>
+        s + (Number(t.plasticCounts?.s10||0)*Number(t.plasticPrices?.s10||0))
+          + (Number(t.plasticCounts?.s5 ||0)*Number(t.plasticPrices?.s5 ||0))
+          + (Number(t.plasticCounts?.s2 ||0)*Number(t.plasticPrices?.s2 ||0)), 0);
+      const toplamHasilat  = oliveIncome + tinIncome + plasticIncome;
 
-      const totalFactoryExpenses = totalFactoryWorkerExpenses + totalFactoryOverheadExpenses + totalTinPurchaseCost + totalPlasticPurchaseCost;
+      const toplamBilled   = trans.reduce((s,t) => s + Number(t.totalCost        || 0), 0);
+      const toplamOdenen   = trans.reduce((s,t) => s + Number(t.paymentReceived  || 0), 0);
+      const toplamFire     = trans.reduce((s,t) => s + Number(t.paymentLoss      || 0), 0);
+      const bekleyenOdeme  = toplamBilled - toplamOdenen - toplamFire;
 
-      const detayliStokMaliyet = hesaplaDetayliStokDegeri(allData.tinPurchases || [], allData.transactions || []);
-      const detayliBidonStokMaliyet = hesaplaDetayliBidonStokDegeri(allData.plasticPurchases || [], allData.transactions || []);
-      const toplamTenekeKalanMaliyet = Object.values(detayliStokMaliyet).reduce((sum, v) => sum + (v.maliyet_kalan || 0), 0);
-      const toplamBidonKalanMaliyet = Object.values(detayliBidonStokMaliyet).reduce((sum, v) => sum + (v.maliyet_kalan || 0), 0);
+      const toplamWorker   = wexp.reduce((s,e)  => s + Number(e.amount || 0), 0);
+      const toplamOverhead = fover.reduce((s,e)  => s + Number(e.amount || 0), 0);
+      const toplamTinCost  = tinP.reduce((s,p)   => s + Number(p.totalCost || 0), 0);
+      const toplamPlasCost = plasP.reduce((s,p)  => s + Number(p.totalCost || 0), 0);
+      const toplamPomace   = pomace.reduce((s,r) => s + Number(r.totalRevenue || 0), 0);
 
-      let fileContent = `SAF DAMLA ZEYTİNYAĞI FABRİKASI - YEDEK DOSYASI\n`;
-      fileContent += `Yedekleme Tarihi: ${new Date().toLocaleString('tr-TR')}\n`;
-      fileContent += `==================================================\n\n`;
+      const detayliTeneke  = hesaplaDetayliTenekeStok(tinP, trans);
+      const detayliBidon   = hesaplaDetayliBidonStok(plasP, trans);
+      const tenekeStokVal  = Object.values(detayliTeneke).reduce((s,v) => s + v.maliyet_kalan, 0);
+      const bidonStokVal   = Object.values(detayliBidon).reduce((s,v)  => s + v.maliyet_kalan, 0);
 
-      const toplamGelirKart = (totalBilledAmount - totalPaymentLoss) + totalFactoryPomaceRevenues + toplamTenekeKalanMaliyet + toplamBidonKalanMaliyet;
-      fileContent += `==================================================\n`;
-      fileContent += `--- FABRİKA GENEL ÖZETİ ---\n`;
-      fileContent += `Toplam Gelir: ${formatNumber(toplamGelirKart, '₺')}\n`;
-      fileContent += `Toplam Gider: ${formatNumber(totalFactoryExpenses, '₺')}\n`;
-      fileContent += `Net Kâr/Zarar: ${formatNumber(toplamGelirKart - totalFactoryExpenses, '₺')}\n`;
-      fileContent += `Kalan Teneke Stok Değeri: ${formatNumber(toplamTenekeKalanMaliyet, '₺')}\n`;
-      fileContent += `Kalan Bidon Stok Değeri: ${formatNumber(toplamBidonKalanMaliyet, '₺')}\n`;
-      fileContent += `\n`;
+      const toplamGider    = toplamWorker + toplamOverhead + toplamTinCost + toplamPlasCost;
+      const toplamGelir    = (toplamBilled - toplamFire) + toplamPomace + tenekeStokVal + bidonStokVal;
+      const netKar         = toplamGelir - toplamGider;
 
-      const oliveIncome = allData.transactions.reduce((sum, t) => sum + (Number(t.oliveKg || 0) * Number(t.pricePerKg || 0)), 0);
-      const tinIncome = allData.transactions.reduce((sum, t) =>
-        sum + (Number(t.tinCounts?.s16 || 0) * Number(t.tinPrices?.s16 || 0))
-            + (Number(t.tinCounts?.s10 || 0) * Number(t.tinPrices?.s10 || 0))
-            + (Number(t.tinCounts?.s5 || 0) * Number(t.tinPrices?.s5 || 0)), 0);
-      const plasticIncome = allData.transactions.reduce((sum, t) =>
-        sum + (Number(t.plasticCounts?.s10 || 0) * Number(t.plasticPrices?.s10 || 0))
-            + (Number(t.plasticCounts?.s5 || 0) * Number(t.plasticPrices?.s5 || 0))
-            + (Number(t.plasticCounts?.s2 || 0) * Number(t.plasticPrices?.s2 || 0)), 0);
-      const toplamHasılat = oliveIncome + tinIncome + plasticIncome;
-      fileContent += `==================================================\n`;
-      fileContent += `--- ZEYTİN ÇEKİM ÜCRETLERİ ---\n`;
-      fileContent += `Zeytin Sıkımı Hasılatı: ${formatNumber(oliveIncome, '₺')}\n`;
-      fileContent += `Teneke Satışı Hasılatı: ${formatNumber(tinIncome, '₺')}\n`;
-      fileContent += `Bidon Satışı Hasılatı: ${formatNumber(plasticIncome, '₺')}\n`;
-      fileContent += `Toplam Hasılat: ${formatNumber(toplamHasılat - totalPaymentLoss, '₺')}\n`;
-      fileContent += `Toplam Alınan Ödeme: ${formatNumber(totalReceivedPayment, '₺')}\n`;
-      fileContent += `Bekleyen Ödemeler: ${formatNumber(pendingPayments, '₺')}\n`;
-      fileContent += `Ödeme Firesi: ${formatNumber(totalPaymentLoss, '₺')}\n`;
-      fileContent += `\n`;
+      const toplamOilAlimMaliyet  = oilP.reduce((s,p) => s + Number(p.totalCost    || 0), 0);
+      const toplamOilSatisGelir   = oilS.reduce((s,p) => s + Number(p.totalRevenue || 0), 0);
+      const toplamAlinanOilTin    = oilP.reduce((s,p) => s + Number(p.tinCount     || 0), 0);
+      const toplamSatilanOilTin   = oilS.reduce((s,p) => s + Number(p.tinCount     || 0), 0);
 
-      const toplamOilPurchaseCost = (allData.oilPurchases || []).reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-      const toplamOilSaleRevenue = (allData.oilSales || []).reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
-      const toplamAlinanOilTins = (allData.oilPurchases || []).reduce((sum, p) => sum + Number(p.tinCount || 0), 0);
-      const toplamSatilanOilTins = (allData.oilSales || []).reduce((sum, s) => sum + Number(s.tinCount || 0), 0);
-      const kalanOilTins = toplamAlinanOilTins - toplamSatilanOilTins;
-      const netOilProfit = toplamOilSaleRevenue - toplamOilPurchaseCost;
-      fileContent += `==================================================\n`;
-      fileContent += `--- ZEYTİNYAĞI ALIM/SATIM ÖZETİ ---\n`;
-      fileContent += `Toplam Alım Maliyeti: ${formatNumber(toplamOilPurchaseCost, '₺')}\n`;
-      fileContent += `Toplam Satış Geliri: ${formatNumber(toplamOilSaleRevenue, '₺')}\n`;
-      fileContent += `Kalan Net Teneke Stoğu: ${formatNumber(kalanOilTins, 'adet')}\n`;
-      fileContent += `Net Kâr/Zarar: ${formatNumber(netOilProfit, '₺')}\n`;
-      fileContent += `\n`;
+      const tarih = new Date().toLocaleString('tr-TR', { dateStyle: 'full', timeStyle: 'medium' });
 
-      fileContent += `==================================================\n`;
-      fileContent += `--- ZEYTİNYAĞI ALIMLARI (${(allData.oilPurchases || []).length} adet) ---\n`;
-      (allData.oilPurchases || []).forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, Firma: ${e.supplierName}, Teneke Sayısı: ${e.tinCount}, Teneke Fiyatı: ${formatNumber(e.tinPrice, '₺')}, Toplam Maliyet: ${formatNumber(e.totalCost, '₺')}\n`;
+      let f = '';
+      const sep = '==================================================\n';
+      f += `SAF DAMLA ZEYTİNYAĞI FABRİKASI - TAM VERİ YEDEĞİ\n`;
+      f += `Yedekleme Tarihi ve Saati: ${tarih}\n`;
+      f += `${sep}\n`;
+
+      /* ANA EKRAN ÖZETİ */
+      f += `${sep}`;
+      f += `--- ANA EKRAN ÖZETİ ---\n`;
+      f += `Toplam İşlenen Zeytin  : ${formatNumber(toplamZeytin, ' kg')}\n`;
+      f += `Toplam Çıkan Yağ       : ${formatNumber(toplamYag, ' L')}\n`;
+      f += `Genel Yağ/Zeytin Oranı : ${genel_oran}\n`;
+      f += `Zeytin Sıkım Hasılatı  : ${formatNumber(oliveIncome, ' ₺')}\n`;
+      f += `Teneke Kap Hasılatı    : ${formatNumber(tinIncome, ' ₺')}\n`;
+      f += `Bidon Kap Hasılatı     : ${formatNumber(plasticIncome, ' ₺')}\n`;
+      f += `Toplam Hasılat         : ${formatNumber(toplamHasilat, ' ₺')}\n`;
+      f += `Alınan Ödeme           : ${formatNumber(toplamOdenen, ' ₺')}\n`;
+      f += `Bekleyen Ödemeler      : ${formatNumber(bekleyenOdeme, ' ₺')}\n`;
+      f += `Ödeme Firesi           : ${formatNumber(toplamFire, ' ₺')}\n`;
+      f += `\n`;
+
+      /* FABRİKA GELİR/GİDER ÖZETİ */
+      f += `${sep}`;
+      f += `--- FABRİKA TOPLAM GELİR/GİDER ÖZETİ ---\n`;
+      f += `Gelirler Toplamı       : ${formatNumber(toplamGelir, ' ₺')}\n`;
+      f += `  - Toplam Hasılat     : ${formatNumber(toplamHasilat - toplamFire, ' ₺')}\n`;
+      f += `  - Pirina Geliri      : ${formatNumber(toplamPomace, ' ₺')}\n`;
+      f += `  - Kalan Teneke Stok  : ${formatNumber(tenekeStokVal, ' ₺')}\n`;
+      f += `  - Kalan Bidon Stok   : ${formatNumber(bidonStokVal, ' ₺')}\n`;
+      f += `Giderler Toplamı       : ${formatNumber(toplamGider, ' ₺')}\n`;
+      f += `  - İşçi Giderleri     : ${formatNumber(toplamWorker, ' ₺')}\n`;
+      f += `  - Muhtelif Giderler  : ${formatNumber(toplamOverhead, ' ₺')}\n`;
+      f += `  - Teneke Alımları    : ${formatNumber(toplamTinCost, ' ₺')}\n`;
+      f += `  - Bidon Alımları     : ${formatNumber(toplamPlasCost, ' ₺')}\n`;
+      f += `Net Kâr / Zarar        : ${formatNumber(netKar, ' ₺')}\n`;
+      f += `\n`;
+
+      /* STOK DURUMU */
+      f += `${sep}`;
+      f += `--- TENEKE / BİDON STOK DURUMU ---\n`;
+      f += `Teneke Stoku:\n`;
+      f += `  16'lık : Alınan ${detayliTeneke.s16.alinan} | Kullanılan ${detayliTeneke.s16.kullanilan} | Kalan ${detayliTeneke.s16.kalan} (${formatNumber(detayliTeneke.s16.maliyet_kalan, ' ₺')})\n`;
+      f += `  10'luk : Alınan ${detayliTeneke.s10.alinan} | Kullanılan ${detayliTeneke.s10.kullanilan} | Kalan ${detayliTeneke.s10.kalan} (${formatNumber(detayliTeneke.s10.maliyet_kalan, ' ₺')})\n`;
+      f += `   5'lik : Alınan ${detayliTeneke.s5.alinan}  | Kullanılan ${detayliTeneke.s5.kullanilan}  | Kalan ${detayliTeneke.s5.kalan}  (${formatNumber(detayliTeneke.s5.maliyet_kalan, ' ₺')})\n`;
+      f += `Bidon Stoku:\n`;
+      f += `  10'luk : Alınan ${detayliBidon.s10.alinan} | Kullanılan ${detayliBidon.s10.kullanilan} | Kalan ${detayliBidon.s10.kalan} (${formatNumber(detayliBidon.s10.maliyet_kalan, ' ₺')})\n`;
+      f += `   5'lik : Alınan ${detayliBidon.s5.alinan}  | Kullanılan ${detayliBidon.s5.kullanilan}  | Kalan ${detayliBidon.s5.kalan}  (${formatNumber(detayliBidon.s5.maliyet_kalan, ' ₺')})\n`;
+      f += `   2'lik : Alınan ${detayliBidon.s2.alinan}  | Kullanılan ${detayliBidon.s2.kullanilan}  | Kalan ${detayliBidon.s2.kalan}  (${formatNumber(detayliBidon.s2.maliyet_kalan, ' ₺')})\n`;
+      f += `\n`;
+
+      /* ZEYTİNYAĞI ALIM/SATIM */
+      f += `${sep}`;
+      f += `--- ZEYTİNYAĞI ALIM/SATIM ÖZETİ ---\n`;
+      f += `Toplam Alım Maliyeti   : ${formatNumber(toplamOilAlimMaliyet, ' ₺')}\n`;
+      f += `Toplam Satış Geliri    : ${formatNumber(toplamOilSatisGelir, ' ₺')}\n`;
+      f += `Net Kâr/Zarar          : ${formatNumber(toplamOilSatisGelir - toplamOilAlimMaliyet, ' ₺')}\n`;
+      f += `Kalan Net Teneke Stoğu : ${formatNumber(toplamAlinanOilTin - toplamSatilanOilTin, ' adet')}\n`;
+      f += `\n`;
+
+      /* GİDER DETAYLARI */
+      f += `${sep}`;
+      f += `--- İŞÇİ GİDERLERİ (${wexp.length} kayıt) ---\n`;
+      wexp.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | ${e.workerName} | ${e.daysWorked} gün | ${formatNumber(e.amount, ' ₺')} | ${e.description || '-'}\n`;
       });
-      fileContent += `\n`;
-      fileContent += `==================================================\n`;
-      fileContent += `--- ZEYTİNYAĞI SATIŞLARI (${(allData.oilSales || []).length} adet) ---\n`;
-      (allData.oilSales || []).forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, Müşteri: ${e.customerName}, Teneke Sayısı: ${e.tinCount}, Teneke Fiyatı: ${formatNumber(e.tinPrice, '₺')}, Toplam Gelir: ${formatNumber(e.totalRevenue, '₺')}\n`;
-      });
-      fileContent += `\n`;
+      f += `\n`;
 
-      fileContent += `==================================================\n`;
-      fileContent += `--- İŞÇİ GİDERLERİ (${allData.workerExpenses.length} adet) ---\n`;
-      allData.workerExpenses.forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, İsim: ${e.workerName}, Çalıştığı Gün: ${e.daysWorked}, Tutar: ${formatNumber(e.amount, '₺')}, Açıklama: ${e.description}\n`;
+      f += `${sep}`;
+      f += `--- MUHTELİF GİDERLER (${fover.length} kayıt) ---\n`;
+      fover.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | ${e.description} | ${formatNumber(e.amount, ' ₺')}\n`;
       });
-      fileContent += `\n`;
-      fileContent += `==================================================\n`;
-      fileContent += `--- MUHTELİF GİDERLER (${allData.factoryOverhead.length} adet) ---\n`;
-      allData.factoryOverhead.forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, Açıklama: ${e.description}, Tutar: ${formatNumber(e.amount, '₺')}\n`;
-      });
-      fileContent += `\n`;
-      fileContent += `==================================================\n`;
-      fileContent += `--- TENEKE ALIMLARI (${allData.tinPurchases.length} adet) ---\n`;
-      allData.tinPurchases.forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, 16'lık: ${e.s16 || 0}, 10'luk: ${e.s10 || 0}, 5'lik: ${e.s5 || 0}, Birim Fiyat: ${formatNumber(e.tinPrice, '₺')}, Toplam Maliyet: ${formatNumber(e.totalCost, '₺')}, Açıklama: ${e.description}\n`;
-      });
-      fileContent += `\n`;
-      fileContent += `==================================================\n`;
-      fileContent += `--- BİDON ALIMLARI (${allData.plasticPurchases.length} adet) ---\n`;
-      allData.plasticPurchases.forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, 10'luk: ${e.s10 || 0}, 5'lik: ${e.s5 || 0}, 2'lik: ${e.s2 || 0}, Birim Fiyat: ${formatNumber(e.plasticPrice, '₺')}, Toplam Maliyet: ${formatNumber(e.totalCost, '₺')}, Açıklama: ${e.description}\n`;
-      });
-      fileContent += `\n`;
-      fileContent += `==================================================\n`;
-      fileContent += `--- PİRİNA GELİRLERİ (${allData.pomaceRevenues.length} adet) ---\n`;
-      allData.pomaceRevenues.forEach(e => {
-          fileContent += `Tarih: ${new Date(e.date).toLocaleDateString('tr-TR')}, Açıklama: ${e.description}, Tır Sayısı: ${e.truckCount}, Yük: ${e.loadKg} kg, Kg Fiyatı: ${e.pricePerKg} ₺, Toplam Gelir: ${formatNumber(e.totalRevenue, '₺')}\n`;
-      });
-      fileContent += `\n`;
+      f += `\n`;
 
-      fileContent += `==================================================\n`;
-      fileContent += `--- TENEKE/BİDON STOKLARI ---\n`;
-      const kalanTeneke = detayliStokMaliyet;
-      const kalanBidon = detayliBidonStokMaliyet;
-      fileContent += `Kalan Teneke Stokları:\n`;
-      fileContent += `  16'lık: ${kalanTeneke.s16.kalan} adet (Değer: ${formatNumber(kalanTeneke.s16.maliyet_kalan, '₺')})\n`;
-      fileContent += `  10'luk: ${kalanTeneke.s10.kalan} adet (Değer: ${formatNumber(kalanTeneke.s10.maliyet_kalan, '₺')})\n`;
-      fileContent += `  5'lik: ${kalanTeneke.s5.kalan} adet (Değer: ${formatNumber(kalanTeneke.s5.maliyet_kalan, '₺')})\n`;
-      fileContent += `Kalan Bidon Stokları:\n`;
-      fileContent += `  10'luk: ${kalanBidon.s10.kalan} adet (Değer: ${formatNumber(kalanBidon.s10.maliyet_kalan, '₺')})\n`;
-      fileContent += `  5'lik: ${kalanBidon.s5.kalan} adet (Değer: ${formatNumber(kalanBidon.s5.maliyet_kalan, '₺')})\n`;
-      fileContent += `  2'lik: ${kalanBidon.s2.kalan} adet (Değer: ${formatNumber(kalanBidon.s2.maliyet_kalan, '₺')})\n`;
-      fileContent += `\n`;
-
-      fileContent += `==================================================\n`;
-      fileContent += `--- MÜŞTERİ KAYITLARI (Sadece Borçlu Müşteriler) ---\n`;
-      const debtors = customers.filter(c => {
-        const customerTransactions = allData.transactions.filter(t => t.customerId === c.id);
-        const totalDebt = customerTransactions.reduce((sum, t) => sum + (Number(t.totalCost || 0) - Number(t.paymentReceived || 0) - Number(t.paymentLoss || 0)), 0);
-        return totalDebt > 0;
+      f += `${sep}`;
+      f += `--- TENEKE ALIMLARI (${tinP.length} kayıt) ---\n`;
+      tinP.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | 16'lık:${e.s16||0} 10'luk:${e.s10||0} 5'lik:${e.s5||0} | Birim:${formatNumber(e.tinPrice, ' ₺')} | Toplam:${formatNumber(e.totalCost, ' ₺')} | ${e.description||'-'}\n`;
       });
+      f += `\n`;
+
+      f += `${sep}`;
+      f += `--- BİDON ALIMLARI (${plasP.length} kayıt) ---\n`;
+      plasP.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | 10'luk:${e.s10||0} 5'lik:${e.s5||0} 2'lik:${e.s2||0} | Birim:${formatNumber(e.plasticPrice, ' ₺')} | Toplam:${formatNumber(e.totalCost, ' ₺')} | ${e.description||'-'}\n`;
+      });
+      f += `\n`;
+
+      f += `${sep}`;
+      f += `--- PİRİNA GELİRLERİ (${pomace.length} kayıt) ---\n`;
+      pomace.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | ${e.truckCount} tır | ${e.loadKg} kg | ${e.pricePerKg} ₺/kg | Toplam:${formatNumber(e.totalRevenue, ' ₺')} | ${e.description||'-'}\n`;
+      });
+      f += `\n`;
+
+      f += `${sep}`;
+      f += `--- ZEYTİNYAĞI ALIMLARI (${oilP.length} kayıt) ---\n`;
+      oilP.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | ${e.supplierName} | ${e.tinCount} teneke | ${formatNumber(e.tinPrice, ' ₺')}/teneke | Toplam:${formatNumber(e.totalCost, ' ₺')}\n`;
+      });
+      f += `\n`;
+
+      f += `${sep}`;
+      f += `--- ZEYTİNYAĞI SATIŞLARI (${oilS.length} kayıt) ---\n`;
+      oilS.forEach(e => {
+        f += `  ${new Date(e.date).toLocaleDateString('tr-TR')} | ${e.customerName} | ${e.tinCount} teneke | ${formatNumber(e.tinPrice, ' ₺')}/teneke | Toplam:${formatNumber(e.totalRevenue, ' ₺')}\n`;
+      });
+      f += `\n`;
+
+      /* BORÇLU MÜŞTERİLER */
+      const allCust = customers.map(c => {
+        const ct = trans.filter(t => t.customerId === c.id);
+        const billed = ct.reduce((s,t) => s + Number(t.totalCost||0), 0);
+        const paid   = ct.reduce((s,t) => s + Number(t.paymentReceived||0), 0);
+        const loss   = ct.reduce((s,t) => s + Number(t.paymentLoss||0), 0);
+        const olive  = ct.reduce((s,t) => s + Number(t.oliveKg||0), 0);
+        return { ...c, billed, paid, loss, balance: billed-paid-loss, olive, ct };
+      });
+      const debtors    = allCust.filter(c => c.balance > 0).sort((a,b) => b.balance - a.balance);
+      const nonDebtors = allCust.filter(c => c.balance <= 0).sort((a,b) => a.name.localeCompare(b.name,'tr'));
+
+      f += `${sep}`;
+      f += `--- BORÇLU MÜŞTERİLER (${debtors.length} müşteri) ---\n`;
       debtors.forEach(c => {
-        const customerTransactions = allData.transactions.filter(t => t.customerId === c.id);
-        fileContent += `\n*** Müşteri Adı: ${c.name} ***\n`;
-        fileContent += `  > İşlem Geçmişi:\n`;
-        if (customerTransactions.length > 0) {
-          customerTransactions.forEach(t => {
-            const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-            const remaining = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
-            fileContent += `    - Tarih: ${new Date(t.date).toLocaleDateString()}, Açıklama: ${description}, Tutar: ${formatNumber(t.totalCost, '₺')}, Alınan: ${formatNumber(t.paymentReceived, '₺')}, Kalan: ${formatNumber(remaining, '₺')}\n`;
-          });
-        } else {
-          fileContent += `    (Bu müşteriye ait işlem bulunmamaktadır.)\n`;
-        }
+        f += `\n*** ${c.name} ***\n`;
+        f += `  Toplam Sıkım: ${formatNumber(c.olive,' kg')} | Toplam Ücret: ${formatNumber(c.billed,' ₺')} | Alınan: ${formatNumber(c.paid,' ₺')} | KALAN BORÇ: ${formatNumber(c.balance,' ₺')}\n`;
+        c.ct.forEach(t => {
+          const desc = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+          const kalan = (t.totalCost||0)-(t.paymentReceived||0)-(t.paymentLoss||0);
+          f += `    - ${new Date(t.date).toLocaleDateString('tr-TR')} | ${desc} | Ücret:${formatNumber(t.totalCost,' ₺')} | Alınan:${formatNumber(t.paymentReceived,' ₺')} | Kalan:${formatNumber(kalan,' ₺')}\n`;
+        });
       });
-      fileContent += `\n`;
+      f += `\n`;
 
-      const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `safdamla_yedek_${new Date().toISOString().split('T')[0]}.txt`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (err) {
-      console.error("Yedekleme dosyası oluşturulurken hata oluştu:", err);
-      alert("Yedekleme dosyası oluşturulurken bir hata oluştu.");
-    }
-  };
-
-  const handleDownloadNonDebtorsTxt = async () => {
-    try {
-      const allData = await readUserData();
-      let fileContent = `SAF DAMLA ZEYTİNYAĞI FABRİKASI - BORÇSUZ MÜŞTERİLER YEDEK DOSYASI\n`;
-      fileContent += `Yedekleme Tarihi: ${new Date().toLocaleString('tr-TR')}\n`;
-      fileContent += `==================================================\n\n`;
-      fileContent += `--- MÜŞTERİ KAYITLARI (Sadece Borçsuz Müşteriler) ---\n`;
-      
-      const nonDebtors = customers.filter(c => {
-        const customerTransactions = allData.transactions.filter(t => t.customerId === c.id);
-        const totalDebt = customerTransactions.reduce((sum, t) => sum + (Number(t.totalCost || 0) - Number(t.paymentReceived || 0) - Number(t.paymentLoss || 0)), 0);
-        return totalDebt <= 0;
-      });
+      /* BORÇSUZ MÜŞTERİLER */
+      f += `${sep}`;
+      f += `--- BORÇSUZ MÜŞTERİLER (${nonDebtors.length} müşteri) ---\n`;
       nonDebtors.forEach(c => {
-        const customerTransactions = allData.transactions.filter(t => t.customerId === c.id);
-        fileContent += `\n*** Müşteri Adı: ${c.name} ***\n`;
-        fileContent += `  > İşlem Geçmişi:\n`;
-        if (customerTransactions.length > 0) {
-          customerTransactions.forEach(t => {
-            const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-            const remaining = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
-            fileContent += `    - Tarih: ${new Date(t.date).toLocaleDateString()}, Açıklama: ${description}, Tutar: ${formatNumber(t.totalCost, '₺')}, Alınan: ${formatNumber(t.paymentReceived, '₺')}, Kalan: ${formatNumber(remaining, '₺')}\n`;
-          });
-        } else {
-          fileContent += `    (Bu müşteriye ait işlem bulunmamaktadır.)\n`;
-        }
+        f += `\n*** ${c.name} ***\n`;
+        f += `  Toplam Sıkım: ${formatNumber(c.olive,' kg')} | Toplam Ücret: ${formatNumber(c.billed,' ₺')} | Alınan: ${formatNumber(c.paid,' ₺')} | Kalan: ${formatNumber(c.balance,' ₺')}\n`;
+        c.ct.forEach(t => {
+          const desc = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+          const kalan = (t.totalCost||0)-(t.paymentReceived||0)-(t.paymentLoss||0);
+          f += `    - ${new Date(t.date).toLocaleDateString('tr-TR')} | ${desc} | Ücret:${formatNumber(t.totalCost,' ₺')} | Alınan:${formatNumber(t.paymentReceived,' ₺')} | Kalan:${formatNumber(kalan,' ₺')}\n`;
+        });
       });
-      fileContent += `\n`;
-      
-      const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8;' });
+
+      const tarihDosya = new Date().toISOString().replace('T','_').replace(/:/g,'-').split('.')[0];
+      const blob = new Blob(['\uFEFF' + f], { type: 'text/plain;charset=utf-8;' });
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `safdamla_borcsuz_musteriler_${new Date().toISOString().split('T')[0]}.txt`);
+      link.setAttribute('href', URL.createObjectURL(blob));
+      link.setAttribute('download', `safdamla_tam_yedek_${tarihDosya}.txt`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+
     } catch (err) {
-      console.error("Borçsuz müşteriler dosyası oluşturulurken hata oluştu:", err);
-      alert("Borçsuz müşteriler dosyası oluşturulurken bir hata oluştu.");
+      console.error('TXT yedek hatası:', err);
+      alert('TXT yedek dosyası oluşturulurken hata oluştu.');
     }
   };
 
-  // HTML YEDEKLEME YARDIMCI FONKSİYONU
-  const handleDownloadHtmlBackup = async (mode) => {
+  /* ─── HTML YEDEKLEME (tek dosya, borçlu + borçsuz ayrı sekmeler) ─── */
+  const handleDownloadHtmlBackup = async () => {
     try {
       const allData = await readUserData();
-      const isDebtorOnly = mode === 'debtors';
+      const trans  = allData.transactions     || [];
+      const wexp   = allData.workerExpenses   || [];
+      const fover  = allData.factoryOverhead  || [];
+      const pomace = allData.pomaceRevenues   || [];
+      const tinP   = allData.tinPurchases     || [];
+      const plasP  = allData.plasticPurchases || [];
+      const oilP   = allData.oilPurchases     || [];
+      const oilS   = allData.oilSales         || [];
 
-      // 1. Müşteri Verilerini Hesapla ve Filtrele
-      const processedCustomers = customers.map(c => {
-        const cTransactions = (allData.transactions || []).filter(t => t.customerId === c.id);
-        const totalBilled = cTransactions.reduce((sum, t) => sum + Number(t.totalCost || 0), 0);
-        const totalPaid = cTransactions.reduce((sum, t) => sum + Number(t.paymentReceived || 0), 0);
-        const totalLoss = cTransactions.reduce((sum, t) => sum + Number(t.paymentLoss || 0), 0);
-        const balance = totalBilled - totalPaid - totalLoss;
-        const totalOlive = cTransactions.reduce((sum, t) => sum + Number(t.oliveKg || 0), 0);
-        
-        return {
-          ...c,
-          totalBilled,
-          totalPaid,
-          totalLoss,
-          balance,
-          totalOlive,
-          transactions: cTransactions.sort((a, b) => new Date(b.date) - new Date(a.date))
-        };
-      }).filter(c => {
-        if (isDebtorOnly) return c.balance > 0;
-        return c.balance <= 0;
-      }).sort((a, b) => b.balance - a.balance);
+      /* ── HESAPLAMALAR ── */
+      const toplamZeytin  = trans.reduce((s,t) => s + Number(t.oliveKg  || 0), 0);
+      const toplamYag     = trans.reduce((s,t) => s + Number(t.oilLitre || 0), 0);
+      const genel_oran    = toplamYag > 0 ? (toplamZeytin / toplamYag).toFixed(2) : '-';
 
-      const title = isDebtorOnly ? "Tüm Fabrika Verileri & Borçlu Müşteriler" : "Borçsuz Müşteriler Raporu";
-      const dateStr = new Date().toLocaleString('tr-TR');
+      const oliveIncome   = trans.reduce((s,t) => s + Number(t.oliveKg||0)*Number(t.pricePerKg||0), 0);
+      const tinIncome     = trans.reduce((s,t) =>
+        s+(Number(t.tinCounts?.s16||0)*Number(t.tinPrices?.s16||0))
+         +(Number(t.tinCounts?.s10||0)*Number(t.tinPrices?.s10||0))
+         +(Number(t.tinCounts?.s5 ||0)*Number(t.tinPrices?.s5 ||0)), 0);
+      const plasticIncome = trans.reduce((s,t) =>
+        s+(Number(t.plasticCounts?.s10||0)*Number(t.plasticPrices?.s10||0))
+         +(Number(t.plasticCounts?.s5 ||0)*Number(t.plasticPrices?.s5 ||0))
+         +(Number(t.plasticCounts?.s2 ||0)*Number(t.plasticPrices?.s2 ||0)), 0);
+      const toplamHasilat = oliveIncome + tinIncome + plasticIncome;
 
-      // Toplam finansal özetler
-      const totalBilledAll = (allData.transactions || []).reduce((sum, t) => sum + Number(t.totalCost || 0), 0);
-      const totalPaidAll = (allData.transactions || []).reduce((sum, t) => sum + Number(t.paymentReceived || 0), 0);
-      const totalLossAll = (allData.transactions || []).reduce((sum, t) => sum + Number(t.paymentLoss || 0), 0);
-      const pendingAll = totalBilledAll - totalPaidAll - totalLossAll;
+      const toplamBilled  = trans.reduce((s,t) => s + Number(t.totalCost       || 0), 0);
+      const toplamOdenen  = trans.reduce((s,t) => s + Number(t.paymentReceived || 0), 0);
+      const toplamFire    = trans.reduce((s,t) => s + Number(t.paymentLoss     || 0), 0);
+      const bekleyenOdeme = toplamBilled - toplamOdenen - toplamFire;
 
-      const totalWorkerExp = (allData.workerExpenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      const totalOverhead = (allData.factoryOverhead || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      const totalTinCost = (allData.tinPurchases || []).reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-      const totalPlasticCost = (allData.plasticPurchases || []).reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-      const totalFactoryExpenses = totalWorkerExp + totalOverhead + totalTinCost + totalPlasticCost;
+      const totalWorker   = wexp.reduce((s,e)  => s + Number(e.amount     || 0), 0);
+      const totalOverhead = fover.reduce((s,e)  => s + Number(e.amount     || 0), 0);
+      const totalTinCost  = tinP.reduce((s,p)   => s + Number(p.totalCost || 0), 0);
+      const totalPlasCost = plasP.reduce((s,p)  => s + Number(p.totalCost || 0), 0);
+      const totalPomace   = pomace.reduce((s,r) => s + Number(r.totalRevenue || 0), 0);
 
-      const totalPomaceRev = (allData.pomaceRevenues || []).reduce((sum, r) => sum + Number(r.totalRevenue || 0), 0);
-      const detayliStok = hesaplaDetayliStokDegeri(allData.tinPurchases || [], allData.transactions || []);
-      const detayliBidonStok = hesaplaDetayliBidonStokDegeri(allData.plasticPurchases || [], allData.transactions || []);
-      const totalTinStockVal = Object.values(detayliStok).reduce((sum, v) => sum + (v.maliyet_kalan || 0), 0);
-      const totalPlasticStockVal = Object.values(detayliBidonStok).reduce((sum, v) => sum + (v.maliyet_kalan || 0), 0);
+      const detTeneke     = hesaplaDetayliTenekeStok(tinP, trans);
+      const detBidon      = hesaplaDetayliBidonStok(plasP, trans);
+      const tenekeStokVal = Object.values(detTeneke).reduce((s,v) => s + v.maliyet_kalan, 0);
+      const bidonStokVal  = Object.values(detBidon).reduce((s,v)  => s + v.maliyet_kalan, 0);
 
-      const totalFactoryIncome = (totalBilledAll - totalLossAll) + totalPomaceRev + totalTinStockVal + totalPlasticStockVal;
-      const netProfit = totalFactoryIncome - totalFactoryExpenses;
+      const toplamGider   = totalWorker + totalOverhead + totalTinCost + totalPlasCost;
+      const toplamGelir   = (toplamBilled - toplamFire) + totalPomace + tenekeStokVal + bidonStokVal;
+      const netKar        = toplamGelir - toplamGider;
 
-      let htmlContent = `
-      <!DOCTYPE html>
-      <html lang="tr">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Saf Damla - ${title}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body { font-family: 'Outfit', sans-serif; }
-          .tab-content { display: none; }
-          .tab-content.active { display: block; }
-        </style>
-      </head>
-      <body class="bg-slate-50 text-slate-800 min-h-screen">
-        <header class="bg-emerald-800 text-white shadow-lg sticky top-0 z-30">
-          <div class="max-w-7xl mx-auto px-4 py-5 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      /* MÜŞTERİ GRUPLAMA */
+      const allCust = customers.map(c => {
+        const ct     = trans.filter(t => t.customerId === c.id);
+        const billed = ct.reduce((s,t) => s + Number(t.totalCost       || 0), 0);
+        const paid   = ct.reduce((s,t) => s + Number(t.paymentReceived || 0), 0);
+        const loss   = ct.reduce((s,t) => s + Number(t.paymentLoss     || 0), 0);
+        const olive  = ct.reduce((s,t) => s + Number(t.oliveKg         || 0), 0);
+        const yag    = ct.reduce((s,t) => s + Number(t.oilLitre        || 0), 0);
+        return { ...c, billed, paid, loss, balance: billed-paid-loss, olive, yag, ct: ct.sort((a,b)=>new Date(b.date)-new Date(a.date)) };
+      });
+      const debtors    = allCust.filter(c => c.balance > 0).sort((a,b) => b.balance - a.balance);
+      const nonDebtors = allCust.filter(c => c.balance <= 0).sort((a,b) => a.name.localeCompare(b.name,'tr'));
+
+      const dateStr = new Date().toLocaleString('tr-TR', { dateStyle: 'full', timeStyle: 'medium' });
+      const tarihDosya = new Date().toISOString().replace('T','_').replace(/:/g,'-').split('.')[0];
+
+      /* MÜŞTERİ KARTI OLUŞTURUCU */
+      const musteriKartu = (c, renk) => `
+        <div class="border rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow p-4 sm:p-5 customer-card" data-name="${c.name.toLowerCase()}">
+          <div class="flex justify-between items-start border-b pb-3 mb-3">
             <div>
-              <h1 class="text-2xl font-bold tracking-tight">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h1>
-              <p class="text-sm text-emerald-100 mt-1">${title} - Çevrimdışı Rapor Portalı</p>
+              <h3 class="text-base font-bold text-slate-800">${c.name}</h3>
+              <p class="text-xs text-slate-400 mt-0.5">${c.ct.length} işlem · ${formatNumber(c.olive,' kg')} zeytin · ${formatNumber(c.yag,' L')} yağ</p>
             </div>
-            <div class="text-right">
-              <span class="inline-block px-3 py-1 bg-emerald-700 text-emerald-100 rounded-full text-xs font-semibold">Yedek Dosyası</span>
-              <p class="text-xs text-emerald-200 mt-1.5">Tarih: ${dateStr}</p>
-            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${renk}">
+              ${c.balance > 0 ? 'Borç: ' : 'Bakiye: '}${formatNumber(c.balance,' ₺')}
+            </span>
           </div>
-        </header>
-
-        <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 space-y-8">
-      `;
-
-      if (isDebtorOnly) {
-        // TÜM VERİLERİN ÖZET KARTLARI
-        htmlContent += `
-          <!-- Finansal Özet Tablosu -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fabrika Toplam Gelir</span>
-              <span class="text-2xl font-bold text-emerald-800 mt-2">${formatNumber(totalFactoryIncome, ' ₺')}</span>
-              <span class="text-slate-400 text-xs mt-1">Hasılat + Pirina + Kalan Stok Değeri</span>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Fabrika Toplam Gider</span>
-              <span class="text-2xl font-bold text-rose-700 mt-2">${formatNumber(totalFactoryExpenses, ' ₺')}</span>
-              <span class="text-slate-400 text-xs mt-1">İşçi + Giderler + Stok Alımları</span>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Net Kar / Zarar</span>
-              <span class="text-2xl font-bold ${netProfit >= 0 ? 'text-blue-700' : 'text-rose-700'} mt-2">${formatNumber(netProfit, ' ₺')}</span>
-              <span class="text-slate-400 text-xs mt-1">İşletme Kar Durumu</span>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Bekleyen Müşteri Alacağı</span>
-              <span class="text-2xl font-bold text-rose-600 mt-2">${formatNumber(pendingAll, ' ₺')}</span>
-              <span class="text-slate-400 text-xs mt-1">Müşterilerden Toplam Alacak</span>
-            </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs bg-slate-50 rounded-xl p-2 mb-3">
+            <div><span class="block text-slate-400">Toplam Ücret</span><span class="font-bold text-slate-800">${formatNumber(c.billed,' ₺')}</span></div>
+            <div><span class="block text-slate-400">Alınan</span><span class="font-bold text-emerald-600">${formatNumber(c.paid,' ₺')}</span></div>
+            <div><span class="block text-slate-400">Kalan</span><span class="font-bold ${c.balance>0?'text-rose-600':'text-emerald-600'}">${formatNumber(c.balance,' ₺')}</span></div>
           </div>
-
-          <!-- TABS -->
-          <div class="flex flex-wrap gap-2 border-b pb-3">
-            <button onclick="switchTab(event, 'debtor-customers-tab')" class="tab-btn px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow-sm">Müşteriler (${processedCustomers.length})</button>
-            <button onclick="switchTab(event, 'worker-expenses-tab')" class="tab-btn px-4 py-2.5 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">İşçi Ücretleri (${(allData.workerExpenses || []).length})</button>
-            <button onclick="switchTab(event, 'factory-overhead-tab')" class="tab-btn px-4 py-2.5 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">Fabrika Giderleri (${(allData.factoryOverhead || []).length})</button>
-            <button onclick="switchTab(event, 'tin-stocks-tab')" class="tab-btn px-4 py-2.5 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">Teneke Alım & Stok</button>
-            <button onclick="switchTab(event, 'plastic-stocks-tab')" class="tab-btn px-4 py-2.5 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">Bidon Alım & Stok</button>
-            <button onclick="switchTab(event, 'pomace-tab')" class="tab-btn px-4 py-2.5 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">Pirina Geliri</button>
-          </div>
-        `;
-      } else {
-        htmlContent += `
-          <!-- Borçsuz Müşteriler Özet -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Borçsuz Müşteri Sayısı</span>
-              <p class="text-3xl font-bold text-emerald-800 mt-2">${processedCustomers.length} Müşteri</p>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Toplam Çekilen Zeytin</span>
-              <p class="text-3xl font-bold text-slate-800 mt-2">${formatNumber(processedCustomers.reduce((sum, c) => sum + c.totalOlive, 0), ' kg')}</p>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Toplam Alınan Ödeme</span>
-              <p class="text-3xl font-bold text-emerald-600 mt-2">${formatNumber(processedCustomers.reduce((sum, c) => sum + c.totalPaid, 0), ' ₺')}</p>
-            </div>
-          </div>
-        `;
-      }
-
-      // MÜŞTERİ KARTLARI TAB ALANI (Tüm modlarda var)
-      htmlContent += `
-        <!-- Müşteri Listesi İçeriği -->
-        <div id="${isDebtorOnly ? 'debtor-customers-tab' : 'default-tab'}" class="tab-content active space-y-6">
-          <div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <h2 class="text-lg font-bold text-slate-800">${title} Listesi</h2>
-              <input type="text" id="cust-search" oninput="searchCustomers()" placeholder="Müşteri adıyla ara..." class="px-4 py-2 border rounded-xl w-full sm:w-80 min-h-[44px] focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-            </div>
-
-            <div class="grid grid-cols-1 gap-4" id="customers-list-container">
-              ${processedCustomers.map(c => `
-                <div class="border rounded-2xl bg-white shadow-sm hover:shadow transition-shadow p-4 sm:p-6 customer-item-card" data-name="${c.name.toLowerCase()}">
-                  <div class="flex justify-between items-start border-b pb-3">
-                    <div>
-                      <h3 class="text-lg font-bold text-slate-800">${c.name}</h3>
-                      <p class="text-xs text-slate-400 mt-1">İşlem Sayısı: ${c.transactions.length}</p>
-                    </div>
-                    <span class="px-4 py-1.5 rounded-full text-sm font-bold ${c.balance > 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
-                      Bakiye: ${formatNumber(c.balance, ' ₺')}
-                    </span>
-                  </div>
-
-                  <div class="grid grid-cols-3 gap-2 text-center text-xs text-slate-600 py-3 bg-slate-50 rounded-xl mt-3">
-                    <div><span class="block text-slate-400">Toplam Sıkım</span><span class="font-bold text-slate-800">${formatNumber(c.totalOlive, ' kg')}</span></div>
-                    <div><span class="block text-slate-400">Toplam Ücret</span><span class="font-bold text-slate-800">${formatNumber(c.totalBilled, ' ₺')}</span></div>
-                    <div><span class="block text-slate-400">Toplam Ödenen</span><span class="font-bold text-emerald-600">${formatNumber(c.totalPaid, ' ₺')}</span></div>
-                  </div>
-
-                  <div class="mt-4 pt-3 border-t">
-                    <button onclick="toggleDetails('${c.id}')" class="text-xs text-blue-600 font-bold hover:text-blue-800 flex items-center min-h-[32px]">İşlem Detaylarını Gör ▾</button>
-                    <div id="details-${c.id}" class="hidden mt-3 space-y-2">
-                      ${c.transactions.map(t => {
-                        const tBakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
-                        const desc = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-                        return `
-                          <div class="bg-slate-50 p-3 rounded-xl border text-xs space-y-1">
-                            <div class="flex justify-between font-semibold">
-                              <span class="text-slate-500">${new Date(t.date).toLocaleDateString('tr-TR')}</span>
-                              <span class="${tBakiye > 0 ? 'text-rose-600' : 'text-emerald-600'}">Kalan: ${formatNumber(tBakiye, ' ₺')}</span>
-                            </div>
-                            <p class="text-slate-700 mt-1">${desc}</p>
-                            <div class="flex justify-between text-[11px] text-slate-400 pt-1 border-t mt-1">
-                              <span>Ücret: ${formatNumber(t.totalCost, ' ₺')}</span>
-                              <span>Ödenen: ${formatNumber(t.paymentReceived, ' ₺')}</span>
-                            </div>
-                          </div>
-                        `;
-                      }).join('')}
-                    </div>
-                  </div>
+          <button onclick="toggleDet('${c.id}')" class="text-xs text-blue-600 font-semibold hover:underline">▸ İşlem Detayları (${c.ct.length})</button>
+          <div id="det-${c.id}" class="hidden mt-3 space-y-2">
+            ${c.ct.map(t => {
+              const kalan = (t.totalCost||0)-(t.paymentReceived||0)-(t.paymentLoss||0);
+              const desc  = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+              return `
+              <div class="bg-slate-50 border rounded-xl p-3 text-xs">
+                <div class="flex justify-between font-semibold mb-1">
+                  <span class="text-slate-500">${new Date(t.date).toLocaleDateString('tr-TR')}</span>
+                  <span class="${kalan>0?'text-rose-600':'text-emerald-600'}">Kalan: ${formatNumber(kalan,' ₺')}</span>
                 </div>
-              `).join('')}
-            </div>
+                <p class="text-slate-700 mb-1">${desc}</p>
+                <div class="flex justify-between text-slate-400 border-t pt-1">
+                  <span>Ücret: ${formatNumber(t.totalCost,' ₺')}</span>
+                  <span>Ödenen: ${formatNumber(t.paymentReceived,' ₺')}</span>
+                  <span>Yağ: ${formatNumber(t.oilLitre,' L')}</span>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+
+      const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saf Damla – Tam Veri Yedeği</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Outfit', sans-serif; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-emerald-800 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h1>
+        <p class="text-emerald-200 text-xs mt-0.5">Tam Veri Yedeği – Çevrimdışı Rapor</p>
+      </div>
+      <div class="text-right">
+        <span class="inline-block px-3 py-1 bg-emerald-700 text-emerald-100 rounded-full text-xs font-semibold">Yedek Dosyası</span>
+        <p class="text-xs text-emerald-200 mt-1">📅 ${dateStr}</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
+
+    <!-- ── ANA EKRAN KARTLARı ── -->
+    <div>
+      <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">📊 Ana Ekran Özeti</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Toplam İşlenen Zeytin</p>
+          <p class="text-xl font-bold text-slate-800 mt-1">${formatNumber(toplamZeytin,' kg')}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Toplam Çıkan Yağ</p>
+          <p class="text-xl font-bold text-slate-800 mt-1">${formatNumber(toplamYag,' L')}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Genel Yağ / Zeytin Oranı</p>
+          <p class="text-xl font-bold text-slate-800 mt-1">${genel_oran}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Zeytin Sıkım Ücreti (Toplam)</p>
+          <p class="text-xl font-bold text-emerald-700 mt-1">${formatNumber(oliveIncome,' ₺')}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Toplam Hasılat</p>
+          <p class="text-xl font-bold text-emerald-700 mt-1">${formatNumber(toplamHasilat,' ₺')}</p>
+          <p class="text-xs text-slate-400 mt-1">Sıkım + Teneke + Bidon</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Alınan Ödeme</p>
+          <p class="text-xl font-bold text-emerald-700 mt-1">${formatNumber(toplamOdenen,' ₺')}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Bekleyen Ödemeler</p>
+          <p class="text-xl font-bold text-rose-600 mt-1">${formatNumber(bekleyenOdeme,' ₺')}</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <p class="text-xs text-slate-400">Ödeme Firesi</p>
+          <p class="text-xl font-bold text-orange-600 mt-1">${formatNumber(toplamFire,' ₺')}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FABRİKA GELİR/GİDER ÖZETİ ── -->
+    <div>
+      <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">🏭 Fabrika Toplam Gelir Gider Özeti</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl shadow-sm">
+          <p class="text-xs font-bold text-emerald-600 uppercase mb-2">Gelirler Toplamı</p>
+          <p class="text-2xl font-bold text-emerald-800">${formatNumber(toplamGelir,' ₺')}</p>
+          <div class="text-xs text-emerald-700 mt-3 space-y-0.5">
+            <p>• Toplam Hasılat: ${formatNumber(toplamHasilat - toplamFire,' ₺')}</p>
+            <p>• Pirina Geliri: ${formatNumber(totalPomace,' ₺')}</p>
+            <p>• Ödeme Firesi: -${formatNumber(toplamFire,' ₺')}</p>
+            <p>• Kalan Teneke Stok Değeri: ${formatNumber(tenekeStokVal,' ₺')}</p>
+            <p>• Kalan Bidon Stok Değeri: ${formatNumber(bidonStokVal,' ₺')}</p>
           </div>
         </div>
-      `;
-
-      if (isDebtorOnly) {
-        // İŞÇİ GİDERLERİ TABI
-        htmlContent += `
-          <div id="worker-expenses-tab" class="tab-content space-y-6">
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">İşçi Ücretleri Ödemeleri</h2>
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tarih</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">İşçi Adı</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Çalıştığı Gün</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Verilen Ücret</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Açıklama</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100">
-                    ${(allData.workerExpenses || []).map(e => `
-                      <tr>
-                        <td class="px-6 py-4">${new Date(e.date).toLocaleDateString('tr-TR')}</td>
-                        <td class="px-6 py-4 font-semibold">${e.workerName}</td>
-                        <td class="px-6 py-4">${e.daysWorked} gün</td>
-                        <td class="px-6 py-4 text-rose-700 font-bold">${formatNumber(e.amount, ' ₺')}</td>
-                        <td class="px-6 py-4 text-slate-500">${e.description || '-'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        <div class="bg-rose-50 border border-rose-200 p-5 rounded-2xl shadow-sm">
+          <p class="text-xs font-bold text-rose-600 uppercase mb-2">Giderler Toplamı</p>
+          <p class="text-2xl font-bold text-rose-800">${formatNumber(toplamGider,' ₺')}</p>
+          <div class="text-xs text-rose-700 mt-3 space-y-0.5">
+            <p>• İşçi Giderleri: ${formatNumber(totalWorker,' ₺')}</p>
+            <p>• Muhtelif Giderler: ${formatNumber(totalOverhead,' ₺')}</p>
+            <p>• Teneke Alımları: ${formatNumber(totalTinCost,' ₺')}</p>
+            <p>• Bidon Alımları: ${formatNumber(totalPlasCost,' ₺')}</p>
           </div>
+        </div>
+        <div class="bg-white border p-5 rounded-2xl shadow-sm flex flex-col justify-center items-center">
+          <p class="text-xs font-bold text-slate-500 uppercase mb-2">Net Kâr / Zarar</p>
+          <p class="text-3xl font-bold ${netKar >= 0 ? 'text-blue-700' : 'text-rose-700'}">${formatNumber(netKar,' ₺')}</p>
+        </div>
+      </div>
+    </div>
 
-          <!-- MÜHTELİF GİDERLER TABI -->
-          <div id="factory-overhead-tab" class="tab-content space-y-6">
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Muhtelif Fabrika Giderleri</h2>
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tarih</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Açıklama</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Gider Tutarı</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100">
-                    ${(allData.factoryOverhead || []).map(e => `
-                      <tr>
-                        <td class="px-6 py-4">${new Date(e.date).toLocaleDateString('tr-TR')}</td>
-                        <td class="px-6 py-4 font-semibold">${e.description}</td>
-                        <td class="px-6 py-4 text-rose-700 font-bold">${formatNumber(e.amount, ' ₺')}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+    <!-- ── ANA SEKMELER ── -->
+    <div>
+      <div class="flex flex-wrap gap-2 border-b pb-3 mb-4" id="main-tabs">
+        <button onclick="switchTab('borclular')" id="tab-btn-borclular" class="tab-main-btn px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold shadow">
+          🔴 Borçlu Müşteriler (${debtors.length})
+        </button>
+        <button onclick="switchTab('borcsuzlar')" id="tab-btn-borcsuzlar" class="tab-main-btn px-4 py-2 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">
+          🟢 Borçsuz Müşteriler (${nonDebtors.length})
+        </button>
+        <button onclick="switchTab('giderler')" id="tab-btn-giderler" class="tab-main-btn px-4 py-2 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">
+          💰 Giderler & Gelirler
+        </button>
+        <button onclick="switchTab('stok')" id="tab-btn-stok" class="tab-main-btn px-4 py-2 bg-white border text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50">
+          📦 Stok Durumu
+        </button>
+      </div>
+
+      <!-- BORÇLU MÜŞTERİLER PANELİ -->
+      <div id="panel-borclular" class="tab-panel active">
+        <div class="bg-white p-4 rounded-2xl border shadow-sm mb-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div>
+            <h3 class="font-bold text-rose-700">Borçlu Müşteriler Listesi</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Toplam ${debtors.length} müşteri · Toplam alacak: ${formatNumber(debtors.reduce((s,c)=>s+c.balance,0),' ₺')}</p>
           </div>
-
-          <!-- TENEKE ALIM VE STOK TABI -->
-          <div id="tin-stocks-tab" class="tab-content space-y-6">
-            <!-- Stok Durumu -->
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Teneke Stok Durumu</h2>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                ${['s16', 's10', 's5'].map(size => {
-                  const s = detayliStok[size];
-                  return `
-                    <div class="p-4 rounded-xl border bg-slate-50 text-center">
-                      <h3 class="font-bold text-slate-700">${size.replace('s', '')}'lık Teneke</h3>
-                      <div class="grid grid-cols-3 gap-2 mt-3 text-xs">
-                        <div><span class="text-slate-400">Alınan</span><p class="font-bold text-slate-700">${s.alinan}</p></div>
-                        <div><span class="text-slate-400">Kullanılan</span><p class="font-bold text-slate-700">${s.kullanilan}</p></div>
-                        <div><span class="text-slate-400">Kalan</span><p class="font-bold text-emerald-600">${s.kalan}</p></div>
-                      </div>
-                      <p class="text-xs text-slate-500 font-semibold mt-3">Değer: ${formatNumber(s.maliyet_kalan, ' ₺')}</p>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-              <div class="mt-4 p-3 bg-emerald-50 rounded-xl text-center border border-emerald-100 text-emerald-800 font-bold">
-                Toplam Kalan Teneke Stok Değeri: ${formatNumber(totalTinStockVal, ' ₺')}
-              </div>
-            </div>
-
-            <!-- Teneke Alımları Geçmişi -->
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Teneke Alımları Listesi</h2>
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tarih</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">16'lık</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">10'luk</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">5'lik</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Toplam Maliyet</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Açıklama</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100">
-                    ${(allData.tinPurchases || []).map(p => `
-                      <tr>
-                        <td class="px-6 py-4">${new Date(p.date).toLocaleDateString('tr-TR')}</td>
-                        <td class="px-6 py-4">${p.s16 || 0} ad</td>
-                        <td class="px-6 py-4">${p.s10 || 0} ad</td>
-                        <td class="px-6 py-4">${p.s5 || 0} ad</td>
-                        <td class="px-6 py-4 text-rose-700 font-bold">${formatNumber(p.totalCost, ' ₺')}</td>
-                        <td class="px-6 py-4 text-slate-500">${p.description || '-'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- BİDON ALIM VE STOK TABI -->
-          <div id="plastic-stocks-tab" class="tab-content space-y-6">
-            <!-- Stok Durumu -->
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Bidon Stok Durumu</h2>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                ${['s10', 's5', 's2'].map(size => {
-                  const s = detayliBidonStok[size];
-                  return `
-                    <div class="p-4 rounded-xl border bg-slate-50 text-center">
-                      <h3 class="font-bold text-slate-700">${size.replace('s', '')}'luk Bidon</h3>
-                      <div class="grid grid-cols-3 gap-2 mt-3 text-xs">
-                        <div><span class="text-slate-400">Alınan</span><p class="font-bold text-slate-700">${s.alinan}</p></div>
-                        <div><span class="text-slate-400">Kullanılan</span><p class="font-bold text-slate-700">${s.kullanilan}</p></div>
-                        <div><span class="text-slate-400">Kalan</span><p class="font-bold text-emerald-600">${s.kalan}</p></div>
-                      </div>
-                      <p class="text-xs text-slate-500 font-semibold mt-3">Değer: ${formatNumber(s.maliyet_kalan, ' ₺')}</p>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-              <div class="mt-4 p-3 bg-emerald-50 rounded-xl text-center border border-emerald-100 text-emerald-800 font-bold">
-                Toplam Kalan Bidon Stok Değeri: ${formatNumber(totalPlasticStockVal, ' ₺')}
-              </div>
-            </div>
-
-            <!-- Bidon Alımları Geçmişi -->
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Bidon Alımları Listesi</h2>
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tarih</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">10'luk</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">5'lik</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">2'lik</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Toplam Maliyet</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Açıklama</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100">
-                    ${(allData.plasticPurchases || []).map(p => `
-                      <tr>
-                        <td class="px-6 py-4">${new Date(p.date).toLocaleDateString('tr-TR')}</td>
-                        <td class="px-6 py-4">${p.s10 || 0} ad</td>
-                        <td class="px-6 py-4">${p.s5 || 0} ad</td>
-                        <td class="px-6 py-4">${p.s2 || 0} ad</td>
-                        <td class="px-6 py-4 text-rose-700 font-bold">${formatNumber(p.totalCost, ' ₺')}</td>
-                        <td class="px-6 py-4 text-slate-500">${p.description || '-'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- PİRİNA TABI -->
-          <div id="pomace-tab" class="tab-content space-y-6">
-            <div class="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 class="text-lg font-bold text-slate-800 mb-4">Pirina (Sıkım Posası) Gelir Listesi</h2>
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tarih</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Tır Sayısı</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Toplam Yük</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Fiyat / kg</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Toplam Gelir</th>
-                      <th class="px-6 py-3 text-left font-semibold text-slate-600">Açıklama</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-100">
-                    ${(allData.pomaceRevenues || []).map(r => `
-                      <tr>
-                        <td class="px-6 py-4">${new Date(r.date).toLocaleDateString('tr-TR')}</td>
-                        <td class="px-6 py-4 font-semibold">${r.truckCount} tır</td>
-                        <td class="px-6 py-4">${formatNumber(r.loadKg, ' kg')}</td>
-                        <td class="px-6 py-4">${formatNumber(r.pricePerKg, ' ₺')}</td>
-                        <td class="px-6 py-4 text-emerald-600 font-bold">${formatNumber(r.totalRevenue, ' ₺')}</td>
-                        <td class="px-6 py-4 text-slate-500">${r.description || '-'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-
-      // FOOTER VE JAVASCRIPT BLOKLARI
-      htmlContent += `
-        </main>
-
-        <footer class="text-center text-xs text-slate-400 py-10 mt-12 border-t">
-          <p>© ${new Date().getFullYear()} Saf Damla Zeytinyağı Fabrikası. Tüm Hakları Saklıdır.</p>
-          <p class="mt-1">Bu web sayfası internet gerektirmeyen bağımsız bir yedekleme dosyasıdır.</p>
-        </footer>
-
-        <script>
-          // TABS SWITCHER
-          function switchTab(event, tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-              btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm');
-              btn.classList.add('bg-white', 'text-slate-700', 'border');
-            });
-            
-            event.currentTarget.classList.remove('bg-white', 'text-slate-700', 'border');
-            event.currentTarget.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
-          }
-
-          // SEARCH FUNCTIONALITY
-          function searchCustomers() {
-            const query = document.getElementById('cust-search').value.toLowerCase().trim();
-            const cards = document.querySelectorAll('.customer-item-card');
-            
-            cards.forEach(card => {
-              const name = card.getAttribute('data-name');
-              if (name.includes(query)) {
-                card.style.display = 'block';
-              } else {
-                card.style.display = 'none';
-              }
-            });
-          }
-
-          // DETAILS COLLAPSIBLE
-          function toggleDetails(id) {
-            const el = document.getElementById('details-' + id);
-            if (el.classList.contains('hidden')) {
-              el.classList.remove('hidden');
-              event.currentTarget.innerHTML = 'İşlem Detaylarını Gizle ▴';
-            } else {
-              el.classList.add('hidden');
-              event.currentTarget.innerHTML = 'İşlem Detaylarını Gör ▾';
-            }
-          }
-        </script>
-      </body>
-      </html>
-      `;
-
-      // Download trigger
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `safdamla_${isDebtorOnly ? 'fabrika_ve_borclular' : 'borcsuz_musteriler'}_${new Date().toISOString().split('T')[0]}.html`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (err) {
-      console.error("HTML yedek oluşturulurken hata oluştu:", err);
-      alert("HTML yedek dosyası oluşturulurken hata oluştu.");
-    }
-  };
-
-  return (
-    <div className="space-y-6 sm:space-y-8">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Veri Yedekleme</h1>
-
-      {/* METIN YEDEKLERİ */}
-      <div className="bg-white p-4 sm:p-6 rounded-xl border shadow space-y-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Metin Dosyası (.txt) Olarak İndir</h2>
-        <p className="text-sm text-gray-600">
-          Tüm sistem kayıtlarını cihazınızda kolayca okuyabileceğiniz düz bir metin dosyası formatında indirir.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button 
-            onClick={handleDownloadTxt} 
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition-colors min-h-[48px] text-sm w-full sm:w-auto"
-          >
-            <Download className="w-5 h-5" />
-            <span>Yedek Dosyasını İndir (.txt)</span>
-          </button>
-          <button 
-            onClick={handleDownloadNonDebtorsTxt}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-md transition-colors min-h-[48px] text-sm w-full sm:w-auto"
-          >
-            <Download className="w-5 h-5" />
-            <span>Borçsuz Müşterileri İndir (.txt)</span>
-          </button>
+          <input type="text" id="search-borclular" oninput="filterCards('borclular')" placeholder="Müşteri ara..." class="px-3 py-2 border rounded-xl text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-rose-400">
+        </div>
+        <div class="grid grid-cols-1 gap-3" id="list-borclular">
+          ${debtors.map(c => musteriKartu(c,'bg-red-50 text-red-700 border border-red-200')).join('')}
         </div>
       </div>
 
-      {/* HTML PANEL YEDEKLERİ */}
-      <div className="bg-white p-4 sm:p-6 rounded-xl border shadow space-y-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800">İnteraktif HTML Raporu Olarak İndir</h2>
-        <p className="text-sm text-gray-600">
-          Verileri açtığınızda telefon veya bilgisayar ekranında tıpkı bir uygulama paneli gibi etkileşimli, tablolar ve arama kutusu içeren modern bir arayüzde sunan özel bir web dosyası indirir.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button 
-            onClick={() => handleDownloadHtmlBackup('debtors')} 
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition-colors min-h-[48px] text-sm w-full sm:w-auto"
-          >
-            <Download className="w-5 h-5" />
-            <span>1. Tüm Veriler & Borçlu Müşteriler (.html)</span>
-          </button>
-          <button 
-            onClick={() => handleDownloadHtmlBackup('non-debtors')}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-md transition-colors min-h-[48px] text-sm w-full sm:w-auto"
-          >
-            <Download className="w-5 h-5" />
-            <span>2. Sadece Borçsuz Müşteriler (.html)</span>
-          </button>
+      <!-- BORÇSUZ MÜŞTERİLER PANELİ -->
+      <div id="panel-borcsuzlar" class="tab-panel">
+        <div class="bg-white p-4 rounded-2xl border shadow-sm mb-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div>
+            <h3 class="font-bold text-emerald-700">Borçsuz Müşteriler Listesi</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Toplam ${nonDebtors.length} müşteri · Toplam sıkılan zeytin: ${formatNumber(nonDebtors.reduce((s,c)=>s+c.olive,0),' kg')}</p>
+          </div>
+          <input type="text" id="search-borcsuzlar" oninput="filterCards('borcsuzlar')" placeholder="Müşteri ara..." class="px-3 py-2 border rounded-xl text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-400">
         </div>
+        <div class="grid grid-cols-1 gap-3" id="list-borcsuzlar">
+          ${nonDebtors.map(c => musteriKartu(c,'bg-emerald-50 text-emerald-700 border border-emerald-200')).join('')}
+        </div>
+      </div>
+
+      <!-- GİDERLER & GELİRLER PANELİ -->
+      <div id="panel-giderler" class="tab-panel space-y-4">
+
+        <!-- İşçi Giderleri -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-3">İşçi Giderleri (${wexp.length} kayıt · Toplam: ${formatNumber(totalWorker,' ₺')})</h3>
+          <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50"><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tarih</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">İşçi Adı</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Gün</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Ücret</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Açıklama</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${wexp.map(e => `<tr>
+                <td class="px-4 py-2">${new Date(e.date).toLocaleDateString('tr-TR')}</td>
+                <td class="px-4 py-2 font-semibold">${e.workerName}</td>
+                <td class="px-4 py-2">${e.daysWorked} gün</td>
+                <td class="px-4 py-2 text-rose-700 font-bold">${formatNumber(e.amount,' ₺')}</td>
+                <td class="px-4 py-2 text-slate-500">${e.description||'-'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Muhtelif Giderler -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-3">Muhtelif Giderler (${fover.length} kayıt · Toplam: ${formatNumber(totalOverhead,' ₺')})</h3>
+          <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50"><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tarih</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Açıklama</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tutar</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${fover.map(e => `<tr>
+                <td class="px-4 py-2">${new Date(e.date).toLocaleDateString('tr-TR')}</td>
+                <td class="px-4 py-2 font-semibold">${e.description}</td>
+                <td class="px-4 py-2 text-rose-700 font-bold">${formatNumber(e.amount,' ₺')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Pirina Gelirleri -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-3">Pirina Gelirleri (${pomace.length} kayıt · Toplam: ${formatNumber(totalPomace,' ₺')})</h3>
+          <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50"><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tarih</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tır</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Yük</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Fiyat/kg</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Toplam Gelir</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Açıklama</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${pomace.map(r => `<tr>
+                <td class="px-4 py-2">${new Date(r.date).toLocaleDateString('tr-TR')}</td>
+                <td class="px-4 py-2">${r.truckCount} tır</td>
+                <td class="px-4 py-2">${formatNumber(r.loadKg,' kg')}</td>
+                <td class="px-4 py-2">${formatNumber(r.pricePerKg,' ₺')}</td>
+                <td class="px-4 py-2 text-emerald-700 font-bold">${formatNumber(r.totalRevenue,' ₺')}</td>
+                <td class="px-4 py-2 text-slate-500">${r.description||'-'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Teneke Alımları -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-3">Teneke Alımları (${tinP.length} kayıt · Toplam: ${formatNumber(totalTinCost,' ₺')})</h3>
+          <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50"><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tarih</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">16'lık</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">10'luk</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">5'lik</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Toplam Maliyet</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Açıklama</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${tinP.map(p => `<tr>
+                <td class="px-4 py-2">${new Date(p.date).toLocaleDateString('tr-TR')}</td>
+                <td class="px-4 py-2">${p.s16||0} ad</td>
+                <td class="px-4 py-2">${p.s10||0} ad</td>
+                <td class="px-4 py-2">${p.s5||0} ad</td>
+                <td class="px-4 py-2 text-rose-700 font-bold">${formatNumber(p.totalCost,' ₺')}</td>
+                <td class="px-4 py-2 text-slate-500">${p.description||'-'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </div>
+
+        <!-- Bidon Alımları -->
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+          <h3 class="font-bold text-slate-800 mb-3">Bidon Alımları (${plasP.length} kayıt · Toplam: ${formatNumber(totalPlasCost,' ₺')})</h3>
+          <div class="overflow-x-auto"><table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50"><tr>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Tarih</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">10'luk</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">5'lik</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">2'lik</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Toplam Maliyet</th>
+              <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Açıklama</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              ${plasP.map(p => `<tr>
+                <td class="px-4 py-2">${new Date(p.date).toLocaleDateString('tr-TR')}</td>
+                <td class="px-4 py-2">${p.s10||0} ad</td>
+                <td class="px-4 py-2">${p.s5||0} ad</td>
+                <td class="px-4 py-2">${p.s2||0} ad</td>
+                <td class="px-4 py-2 text-rose-700 font-bold">${formatNumber(p.totalCost,' ₺')}</td>
+                <td class="px-4 py-2 text-slate-500">${p.description||'-'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- STOK PANELİ -->
+      <div id="panel-stok" class="tab-panel space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Teneke Stok -->
+          <div class="bg-white p-5 rounded-2xl border shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4">Teneke Stok Durumu</h3>
+            <div class="space-y-3">
+              ${['s16','s10','s5'].map(sz => {
+                const s = detTeneke[sz];
+                return `<div class="p-3 bg-slate-50 rounded-xl border">
+                  <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}\'lık Teneke</p>
+                  <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div><span class="text-slate-400 block">Alınan</span><span class="font-bold">${s.alinan}</span></div>
+                    <div><span class="text-slate-400 block">Kullanılan</span><span class="font-bold">${s.kullanilan}</span></div>
+                    <div><span class="text-slate-400 block">Kalan</span><span class="font-bold text-emerald-600">${s.kalan}</span></div>
+                  </div>
+                  <p class="text-xs text-center text-slate-500 mt-2 font-semibold">Stok Değeri: ${formatNumber(s.maliyet_kalan,' ₺')}</p>
+                </div>`;
+              }).join('')}
+              <div class="p-3 bg-orange-50 border border-orange-200 rounded-xl text-center font-bold text-orange-800">
+                Toplam Kalan Teneke Stok Değeri: ${formatNumber(tenekeStokVal,' ₺')}
+              </div>
+            </div>
+          </div>
+          <!-- Bidon Stok -->
+          <div class="bg-white p-5 rounded-2xl border shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4">Bidon Stok Durumu</h3>
+            <div class="space-y-3">
+              ${['s10','s5','s2'].map(sz => {
+                const s = detBidon[sz];
+                return `<div class="p-3 bg-slate-50 rounded-xl border">
+                  <p class="font-bold text-slate-700 text-sm mb-2">${sz.replace('s','')}\'luk Bidon</p>
+                  <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div><span class="text-slate-400 block">Alınan</span><span class="font-bold">${s.alinan}</span></div>
+                    <div><span class="text-slate-400 block">Kullanılan</span><span class="font-bold">${s.kullanilan}</span></div>
+                    <div><span class="text-slate-400 block">Kalan</span><span class="font-bold text-emerald-600">${s.kalan}</span></div>
+                  </div>
+                  <p class="text-xs text-center text-slate-500 mt-2 font-semibold">Stok Değeri: ${formatNumber(s.maliyet_kalan,' ₺')}</p>
+                </div>`;
+              }).join('')}
+              <div class="p-3 bg-teal-50 border border-teal-200 rounded-xl text-center font-bold text-teal-800">
+                Toplam Kalan Bidon Stok Değeri: ${formatNumber(bidonStokVal,' ₺')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 py-8 mt-8 border-t">
+    <p>© ${new Date().getFullYear()} Saf Damla Zeytinyağı Fabrikası. Tüm Hakları Saklıdır.</p>
+    <p class="mt-1">Bu dosya internet gerektirmeyen bağımsız bir yedekleme raporudur. Yedekleme: ${dateStr}</p>
+  </footer>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      document.querySelectorAll('.tab-main-btn').forEach(b => {
+        b.classList.remove('bg-rose-600','bg-emerald-600','bg-blue-600','bg-purple-600','text-white','shadow');
+        b.classList.add('bg-white','border','text-slate-700');
+      });
+      const btn = document.getElementById('tab-btn-' + name);
+      btn.classList.remove('bg-white','border','text-slate-700');
+      const colorMap = { borclular:'bg-rose-600', borcsuzlar:'bg-emerald-600', giderler:'bg-blue-600', stok:'bg-purple-600' };
+      btn.classList.add(colorMap[name] || 'bg-slate-600', 'text-white', 'shadow');
+    }
+
+    function filterCards(panel) {
+      const q = document.getElementById('search-' + panel).value.toLowerCase();
+      document.querySelectorAll('#list-' + panel + ' .customer-card').forEach(card => {
+        card.style.display = card.dataset.name.includes(q) ? '' : 'none';
+      });
+    }
+
+    function toggleDet(id) {
+      const el = document.getElementById('det-' + id);
+      const btn = el.previousElementSibling;
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        btn.textContent = '▾ İşlem Detaylarını Gizle';
+      } else {
+        el.classList.add('hidden');
+        btn.textContent = '▸ İşlem Detayları (' + el.children.length + ')';
+      }
+    }
+  </script>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.setAttribute('href', URL.createObjectURL(blob));
+      link.setAttribute('download', `safdamla_tam_yedek_${tarihDosya}.html`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (err) {
+      console.error('HTML yedek hatası:', err);
+      alert('HTML yedek dosyası oluşturulurken hata oluştu.');
+    }
+  };
+
+  /* ─── RENDER ─── */
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Veri Yedekleme</h1>
+
+      {/* BİLGİ KUTUSU */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-amber-800">
+          <p className="font-semibold mb-1">Yedekleme Hakkında</p>
+          <p>Yedek dosyaları <strong>tüm fabrika verilerini</strong> (ana ekran özeti, gelir/gider, stok, borçlu/borçsuz müşteriler) içerir. Tarih ve saat bilgisi dosya adına ve içeriğe yazılır.</p>
+        </div>
+      </div>
+
+      {/* TXT YEDEĞİ */}
+      <div className="bg-white p-4 sm:p-6 rounded-xl border shadow space-y-3">
+        <div className="flex items-center gap-3">
+          <FileText className="w-6 h-6 text-emerald-600" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Metin Dosyası (.txt)</h2>
+        </div>
+        <p className="text-sm text-gray-600">
+          Tüm verileri düz metin formatında indirir. Ana ekran özeti, fabrika gelir/gider, stok durumu,
+          <strong> borçlu ve borçsuz müşteriler ayrı bölümler halinde</strong> tek dosyada yer alır.
+        </p>
+        <button
+          onClick={handleDownloadTxt}
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow transition-colors min-h-[48px] text-sm"
+        >
+          <Download className="w-5 h-5" />
+          <span>Tam Veri Yedeği İndir (.txt)</span>
+        </button>
+      </div>
+
+      {/* HTML YEDEĞİ */}
+      <div className="bg-white p-4 sm:p-6 rounded-xl border shadow space-y-3">
+        <div className="flex items-center gap-3">
+          <Globe className="w-6 h-6 text-blue-600" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">İnteraktif HTML Raporu (.html)</h2>
+        </div>
+        <p className="text-sm text-gray-600">
+          Tarayıcıda açılabilen, arama ve sekme destekli interaktif rapor. Tek dosyada
+          <strong> borçlu müşteriler 🔴</strong> ve <strong>borçsuz müşteriler 🟢</strong> ayrı sekmelerde,
+          tüm fabrika verileri ve dashboard özeti ile birlikte yer alır.
+        </p>
+        <button
+          onClick={handleDownloadHtmlBackup}
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-colors min-h-[48px] text-sm"
+        >
+          <Download className="w-5 h-5" />
+          <span>Tam İnteraktif Rapor İndir (.html)</span>
+        </button>
       </div>
     </div>
   );
