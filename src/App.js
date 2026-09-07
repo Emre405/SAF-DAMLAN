@@ -1004,7 +1004,10 @@ function App() {
             transactions={transactions}
             onOpenNewTransactionModal={handleOpenNewTransactionModal}
             onEditTransaction={setEditingTransaction}
-            onDeleteTransaction={(id) => handleDeleteItem('transactions', id)}
+            onDeleteTransaction={(id) => {
+              setConfirmationAction({ type: 'delete-single-item', collection: 'transactions', id, message: 'Bu işlemi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' });
+              setShowConfirmationModal(true);
+            }}
             navigateToCustomerDetails={navigateTo}
           />
         )}
@@ -1044,7 +1047,10 @@ function App() {
             onSavePomaceRevenue={handleSavePomaceRevenue}
             onSaveTinPurchase={handleSaveTinPurchase}
             onSavePlasticPurchase={handleSavePlasticPurchase}
-            onDeleteItem={(collectionName, id) => handleDeleteItem(collectionName, id)}
+            onDeleteItem={(collectionName, id) => {
+              setConfirmationAction({ type: 'delete-single-item', collection: collectionName, id, message: 'Bu kaydı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' });
+              setShowConfirmationModal(true);
+            }}
             isOnline={isOnline}
             showMessage={showMessage}
           />
@@ -1055,8 +1061,14 @@ function App() {
             transactions={transactions.filter(t => t.customerId === selectedCustomer.id)}
             onBack={() => navigateTo(customerDetailsBackPage)}
             onEditTransaction={handleOpenNewTransactionModal}
-            onDeleteTransaction={(id) => handleDeleteItem('transactions', id)}
-            onDeleteCustomer={handleDeleteSingleCustomer}
+            onDeleteTransaction={(id) => {
+              setConfirmationAction({ type: 'delete-single-item', collection: 'transactions', id, message: 'Bu işlemi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.' });
+              setShowConfirmationModal(true);
+            }}
+            onDeleteCustomer={(customerId, customerName) => {
+              setConfirmationAction({ type: 'delete-single-customer', id: customerId, message: `"${customerName}" müşterisini ve bu müşteriye ait TÜM işlemleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!` });
+              setShowConfirmationModal(true);
+            }}
           />
         )}
         {currentPage === 'backup' && (
