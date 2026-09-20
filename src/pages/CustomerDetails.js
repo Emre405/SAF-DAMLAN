@@ -99,85 +99,109 @@ const CustomerDetails = ({
     if (!customer) return;
     
     try {
+      // İçerik div'i — görünmez alanda render edilecek
       const printableDiv = document.createElement('div');
       printableDiv.style.position = 'absolute';
       printableDiv.style.left = '-9999px';
-      printableDiv.style.width = '148mm';
-      printableDiv.style.padding = '12px';
+      printableDiv.style.top = '0';
+      // A5 genişliği: 148mm ≈ 560px @ 96dpi, scale=2 ile 1120px → canvas 1120px
+      printableDiv.style.width = '560px';
       printableDiv.style.fontFamily = 'Arial, sans-serif';
-      printableDiv.style.fontSize = '12px';
+      printableDiv.style.fontSize = '13px';
       printableDiv.style.backgroundColor = 'white';
+      printableDiv.style.padding = '0';
       
       printableDiv.innerHTML = `
-        <div style="border: 2px dashed #333; border-radius: 12px; padding: 20px; max-width: 500px; margin: 0 auto; background: #fff;">
-          <h2 style="text-align: center; font-weight: 700; font-size: 20px; margin-bottom: 10px;">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h2>
-          <table style="width: 100%; margin-bottom: 15px; font-size: 13px;">
-            <tbody>
-              <tr><td style="padding: 2px 0;"><b>Müşteri:</b></td><td style="padding: 2px 0;">${customer.name}</td><td style="padding: 2px 0;"><b>Toplam İşlem:</b></td><td style="padding: 2px 0;">${transactions.length}</td></tr>
-              <tr><td style="padding: 2px 0;"><b>İşlenen Zeytin:</b></td><td style="padding: 2px 0;">${formatNumber(totalOliveProcessed, 'kg')}</td><td style="padding: 2px 0;"><b>Üretilen Yağ:</b></td><td style="padding: 2px 0;">${formatNumber(totalOilProduced, 'L')}</td></tr>
-              <tr><td style="padding: 2px 0;"><b>Yağ Oranı:</b></td><td style="padding: 2px 0;">${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</td><td style="padding: 2px 0;"><b>Toplam Ücret:</b></td><td style="padding: 2px 0;">${formatNumber(totalBilledAmount, '₺')}</td></tr>
-              <tr><td style="padding: 2px 0;"><b>Alınan Ödeme:</b></td><td style="padding: 2px 0;">${formatNumber(totalPaymentReceived, '₺')}</td><td style="padding: 2px 0;"><b>Kalan Bakiye:</b></td><td style="padding: 2px 0;">${formatNumber(remainingBalance, '₺')}</td></tr>
-              <tr><td colspan="4" style="padding: 2px 0;"><b>Kullanılan Kaplar:</b> Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</td></tr>
-            </tbody>
-          </table>
-          <h3 style="font-weight: 600; font-size: 16px; margin-bottom: 10px;">İşlem Geçmişi</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-              <tr style="background-color: #f3f3f3;">
-                <th style="border: 1px solid #bbbbbb; padding: 6px; text-align: left;">Tarih</th>
-                <th style="border: 1px solid #bbbbbb; padding: 6px; text-align: left;">Açıklama</th>
-                <th style="border: 1px solid #bbbbbb; padding: 6px; text-align: right;">Ücret</th>
-                <th style="border: 1px solid #bbbbbb; padding: 6px; text-align: right;">Alınan</th>
-                <th style="border: 1px solid #bbbbbb; padding: 6px; text-align: right;">Bakiye</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactions.map(t => {
-                const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
-                const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
-                return `
-                  <tr>
-                    <td style="border: 1px solid #bbbbbb; padding: 4px;">${new Date(t.date).toLocaleDateString()}</td>
-                    <td style="border: 1px solid #bbbbbb; padding: 4px;">${description}</td>
-                    <td style="border: 1px solid #bbbbbb; padding: 4px; text-align: right;">${formatNumber(t.totalCost, '₺')}</td>
-                    <td style="border: 1px solid #bbbbbb; padding: 4px; text-align: right;">${formatNumber(t.paymentReceived, '₺')}</td>
-                    <td style="border: 1px solid #bbbbbb; padding: 4px; text-align: right;">${formatNumber(bakiye, '₺')}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+        <div style="width:560px; min-height:794px; background:#fff; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
+          <div style="border: 2px dashed #333; border-radius: 12px; padding: 22px 24px; width: 500px; background: #fff; box-sizing:border-box;">
+            <h2 style="text-align: center; font-weight: 700; font-size: 18px; margin-top:0; margin-bottom: 10px; color:#1e3a8a;">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h2>
+            <table style="width: 100%; margin-bottom: 14px; font-size: 12px; border-collapse:collapse;">
+              <tbody>
+                <tr>
+                  <td style="padding: 3px 4px; width:50%;"><b>Müşteri:</b> ${customer.name}</td>
+                  <td style="padding: 3px 4px; width:50%;"><b>Toplam İşlem:</b> ${transactions.length}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 3px 4px;"><b>İşlenen Zeytin:</b> ${formatNumber(totalOliveProcessed, ' kg')}</td>
+                  <td style="padding: 3px 4px;"><b>Üretilen Yağ:</b> ${formatNumber(totalOilProduced, ' L')}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 3px 4px;"><b>Yağ Oranı:</b> ${(totalOliveProcessed > 0 && totalOilProduced > 0) ? (totalOliveProcessed / totalOilProduced).toFixed(2) : '-'}</td>
+                  <td style="padding: 3px 4px;"><b>Toplam Ücret:</b> ${formatNumber(totalBilledAmount, ' ₺')}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 3px 4px;"><b>Alınan Ödeme:</b> ${formatNumber(totalPaymentReceived, ' ₺')}</td>
+                  <td style="padding: 3px 4px;"><b>Kalan Bakiye:</b> ${formatNumber(remainingBalance, ' ₺')}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding: 3px 4px;"><b>Kullanılan Kaplar:</b> Teneke: ${totalTinCount}, Bidon: ${totalPlasticCount}</td>
+                </tr>
+              </tbody>
+            </table>
+            <h3 style="font-weight: 600; font-size: 14px; margin-top:0; margin-bottom: 8px; color:#374151;">İşlem Geçmişi</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <thead>
+                <tr style="background-color: #f3f3f3;">
+                  <th style="border: 1px solid #bbb; padding: 5px 4px; text-align: left;">Tarih</th>
+                  <th style="border: 1px solid #bbb; padding: 5px 4px; text-align: left;">Açıklama</th>
+                  <th style="border: 1px solid #bbb; padding: 5px 4px; text-align: right;">Ücret</th>
+                  <th style="border: 1px solid #bbb; padding: 5px 4px; text-align: right;">Alınan</th>
+                  <th style="border: 1px solid #bbb; padding: 5px 4px; text-align: right;">Bakiye</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transactions.map(t => {
+                  const bakiye = (t.totalCost || 0) - (t.paymentReceived || 0) - (t.paymentLoss || 0);
+                  const description = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+                  return `
+                    <tr>
+                      <td style="border: 1px solid #bbb; padding: 4px;">${new Date(t.date).toLocaleDateString('tr-TR')}</td>
+                      <td style="border: 1px solid #bbb; padding: 4px;">${description}</td>
+                      <td style="border: 1px solid #bbb; padding: 4px; text-align: right;">${formatNumber(t.totalCost, ' ₺')}</td>
+                      <td style="border: 1px solid #bbb; padding: 4px; text-align: right;">${formatNumber(t.paymentReceived, ' ₺')}</td>
+                      <td style="border: 1px solid #bbb; padding: 4px; text-align: right;">${formatNumber(bakiye, ' ₺')}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
       
       document.body.appendChild(printableDiv);
       
+      // A5 boyutları: 148mm x 210mm, @96dpi: 560px x 794px, scale=2 → canvas 1120x1588
       const canvas = await html2canvas(printableDiv, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: 'white',
-        width: 800,
-        height: 1000
+        width: 560,
+        height: 794
       });
       
       const imgData = canvas.toDataURL('image/png');
+      // A5 sayfası: 148mm x 210mm
       const pdf = new jsPDF('p', 'mm', 'a5');
-      const imgWidth = 148;
-      const pageHeight = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-      
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      const pageW = 148;
+      const pageH = 210;
+      // Resmi A5 sayfasına tam sığdır, kenar boşluğu bırak
+      const margin = 6;
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+      const canvasAspect = canvas.width / canvas.height;
+      let drawW = availW;
+      let drawH = drawW / canvasAspect;
+      if (drawH > availH) {
+        drawH = availH;
+        drawW = drawH * canvasAspect;
       }
+      // Sayfanın tam ortasına yerleştir
+      const xOffset = (pageW - drawW) / 2;
+      const yOffset = (pageH - drawH) / 2;
+      
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, drawW, drawH);
       
       const tarih = new Date().toLocaleDateString('tr-TR').replace(/\./g, '_');
       pdf.save(`${customer.name}_Musteri_Detay_${tarih}.pdf`);

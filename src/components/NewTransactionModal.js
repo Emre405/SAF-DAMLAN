@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FormField } from './FormFields';
 import { roundToTwo, formatNumber, toInputDateString, printTransactionReceipt } from './utils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, defaultPrices, onSaveDefaultPrices, isOnline }) => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -221,6 +223,146 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
     }
   };
 
+  const handleSaveAndDownload = async (e) => {
+    if (e) e.preventDefault();
+    if (!customerSearchTerm.trim()) {
+      setErrorMsg('Lütfen bir müşteri adı girin.');
+      return;
+    }
+
+    const transactionData = {
+      ...formData,
+      customerName: customerSearchTerm,
+      customerId: selectedCustomerOption?.id || null,
+      totalCost,
+      oilRatio,
+      remainingBalance,
+      id: editingTransaction?.id,
+    };
+
+    // PDF için veriyi şimdi yakala
+    const pdfData = {
+      ...formData,
+      customerName: customerSearchTerm,
+      totalCost,
+      oilRatio,
+      remainingBalance,
+    };
+
+    if (!navigator.onLine) {
+      onSave(transactionData);
+      onClose();
+      setTimeout(() => generateTransactionPdf(pdfData), 300);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      await onSave(transactionData);
+      setIsLoading(false);
+      onClose();
+      setTimeout(() => generateTransactionPdf(pdfData), 300);
+    } catch (err) {
+      setErrorMsg(err?.message || 'Kayıt sırasında bir hata oluştu.');
+      setIsLoading(false);
+    }
+  };
+
+  const generateTransactionPdf = async (t) => {
+    try {
+      const oliveCost = (Number(t.oliveKg) || 0) * (Number(t.pricePerKg) || 0);
+      const tinCost = (Number(t.tinCounts?.s16 || 0) * Number(t.tinPrices?.s16 || 0)) + (Number(t.tinCounts?.s10 || 0) * Number(t.tinPrices?.s10 || 0)) + (Number(t.tinCounts?.s5 || 0) * Number(t.tinPrices?.s5 || 0));
+      const plasticCost = (Number(t.plasticCounts?.s10 || 0) * Number(t.plasticPrices?.s10 || 0)) + (Number(t.plasticCounts?.s5 || 0) * Number(t.plasticPrices?.s5 || 0)) + (Number(t.plasticCounts?.s2 || 0) * Number(t.plasticPrices?.s2 || 0));
+      const tc = t.totalCost !== undefined ? Number(t.totalCost) : roundToTwo(oliveCost + tinCost + plasticCost);
+      const rb = roundToTwo(tc - (Number(t.paymentReceived) || 0) - (Number(t.paymentLoss) || 0));
+      const formattedDate = t.date ? new Date(t.date).toLocaleDateString('tr-TR') : '';
+      const descText = t.description ? `${t.description} (${formatNumber(t.oliveKg)} kg zeytin)` : `${formatNumber(t.oliveKg)} kg zeytin`;
+      const oilRatioStr = (Number(t.oliveKg) > 0 && Number(t.oilLitre) > 0) ? (Number(t.oliveKg) / Number(t.oilLitre)).toFixed(2) : '-';
+      const custName = t.customerName || '';
+
+      const printableDiv = document.createElement('div');
+      printableDiv.style.position = 'absolute';
+      printableDiv.style.left = '-9999px';
+      printableDiv.style.top = '0';
+      printableDiv.style.width = '560px';
+      printableDiv.style.fontFamily = 'Arial, sans-serif';
+      printableDiv.style.backgroundColor = 'white';
+      printableDiv.style.padding = '0';
+
+      printableDiv.innerHTML = `
+        <div style="width:560px; min-height:794px; background:#fff; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
+          <div style="border: 2px dashed #333; border-radius: 12px; padding: 22px 24px; width: 500px; background: #fff; box-sizing:border-box;">
+            <h2 style="text-align:center; font-weight:700; font-size:18px; margin-top:0; margin-bottom:6px; color:#1e3a8a;">SAF DAMLA ZEYTİNYAĞI FABRİKASI</h2>
+            <h3 style="text-align:center; font-weight:600; font-size:14px; margin-top:0; margin-bottom:14px; color:#374151;">İşlem Fişi / Makbuz</h3>
+            <table style="width:100%; font-size:12px; margin-bottom:8px;">
+              <tbody>
+                <tr><td style="padding:3px 4px;"><b>Müşteri:</b></td><td style="padding:3px 4px;">${custName}</td></tr>
+                <tr><td style="padding:3px 4px;"><b>Tarih:</b></td><td style="padding:3px 4px;">${formattedDate}</td></tr>
+                <tr><td style="padding:3px 4px;"><b>Açıklama:</b></td><td style="padding:3px 4px;">${descText}</td></tr>
+              </tbody>
+            </table>
+            <hr style="margin:8px 0; border:0; border-top:1px solid #ddd;"/>
+            <table style="width:100%; font-size:12px; margin-bottom:8px;">
+              <tbody>
+                <tr><td style="padding:3px 4px;">Zeytin (kg):</td><td style="padding:3px 4px;">${formatNumber(t.oliveKg)}</td></tr>
+                <tr><td style="padding:3px 4px;">Çıkan Yağ (L):</td><td style="padding:3px 4px;">${formatNumber(t.oilLitre)}</td></tr>
+                <tr><td style="padding:3px 4px;">Kg Başına Ücret (₺):</td><td style="padding:3px 4px;">${formatNumber(t.pricePerKg)}</td></tr>
+                <tr><td style="padding:3px 4px;">Yağ Oranı:</td><td style="padding:3px 4px;">${oilRatioStr}</td></tr>
+                <tr><td style="padding:3px 4px;">Teneke (16/10/5):</td><td style="padding:3px 4px;">${t.tinCounts?.s16||0} / ${t.tinCounts?.s10||0} / ${t.tinCounts?.s5||0}</td></tr>
+                <tr><td style="padding:3px 4px;">Bidon (10/5/2):</td><td style="padding:3px 4px;">${t.plasticCounts?.s10||0} / ${t.plasticCounts?.s5||0} / ${t.plasticCounts?.s2||0}</td></tr>
+              </tbody>
+            </table>
+            <hr style="margin:8px 0; border:0; border-top:1px solid #ddd;"/>
+            <table style="width:100%; font-size:12px; margin-bottom:8px;">
+              <tbody>
+                <tr><td style="padding:3px 4px;">Zeytin Sıkım Ücreti:</td><td style="padding:3px 4px;">${formatNumber(oliveCost, ' ₺')}</td></tr>
+                <tr><td style="padding:3px 4px;">Teneke Fiyatı:</td><td style="padding:3px 4px;">${formatNumber(tinCost, ' ₺')}</td></tr>
+                <tr><td style="padding:3px 4px;">Bidon Fiyatı:</td><td style="padding:3px 4px;">${formatNumber(plasticCost, ' ₺')}</td></tr>
+                <tr><td style="padding:3px 4px;"><b>Genel Toplam:</b></td><td style="padding:3px 4px;"><b>${formatNumber(tc, ' ₺')}</b></td></tr>
+                <tr><td style="padding:3px 4px;">Alınan Ödeme:</td><td style="padding:3px 4px;">${formatNumber(t.paymentReceived||0, ' ₺')}</td></tr>
+                <tr><td style="padding:3px 4px;"><b>Kalan Bakiye:</b></td><td style="padding:3px 4px;"><b>${formatNumber(rb, ' ₺')}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(printableDiv);
+
+      const canvas = await html2canvas(printableDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: 'white',
+        width: 560,
+        height: 794
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a5');
+      const pageW = 148;
+      const pageH = 210;
+      const margin = 6;
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+      const canvasAspect = canvas.width / canvas.height;
+      let drawW = availW;
+      let drawH = drawW / canvasAspect;
+      if (drawH > availH) { drawH = availH; drawW = drawH * canvasAspect; }
+      const xOffset = (pageW - drawW) / 2;
+      const yOffset = (pageH - drawH) / 2;
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, drawW, drawH);
+
+      const tarih = new Date().toLocaleDateString('tr-TR').replace(/\./g, '_');
+      pdf.save(`${custName}_Islem_Fisi_${tarih}.pdf`);
+      document.body.removeChild(printableDiv);
+    } catch (err) {
+      console.error('PDF oluşturma hatası:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-75 p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto p-0 relative">
@@ -351,6 +493,9 @@ const NewTransactionModal = ({ onClose, onSave, customers, editingTransaction, d
             </button>
             <button type="button" onClick={handleSaveAndPrint} className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md min-h-[48px] disabled:opacity-50" disabled={isLoading}>
               {isLoading ? '☁️ Kaydediliyor...' : '🖨️ Kaydet ve Yazdır'}
+            </button>
+            <button type="button" onClick={handleSaveAndDownload} className="w-full sm:w-auto px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold shadow-md min-h-[48px] disabled:opacity-50" disabled={isLoading}>
+              {isLoading ? '☁️ Kaydediliyor...' : '📥 Kaydet ve İndir'}
             </button>
           </div>
         </form>
