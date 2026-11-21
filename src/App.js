@@ -21,8 +21,19 @@ import BackupPage from './pages/BackupPage';
 // Modallar ve Bileşenler
 import NewTransactionModal from './components/NewTransactionModal';
 import ConfirmationModal from './components/ConfirmationModal';
+import MigrationModal from './components/MigrationModal';
 import NavItem from './components/NavItem';
 import { formatNumber } from './components/utils';
+
+// Alt-Koleksiyon ve Veritabanı Servisleri
+import {
+  checkMigrationStatus,
+  loadAllSubcollectionsData,
+  saveSubcollectionItem,
+  deleteSubcollectionItem,
+  saveDefaultPrices as saveDefaultPricesSubcollection,
+  SUBCOLLECTIONS
+} from './services/firestoreService';
 
 const mockData = {
   customers: [],
@@ -249,6 +260,11 @@ function App() {
   const [isOnline, setIsOnline] = useState(getNetworkStatus());
   const [syncStatus, setSyncStatus] = useState('synced');
 
+  // Migrasyon ve Alt-Koleksiyon Durumu
+  const [isMigrated, setIsMigrated] = useState(false);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [migrationSourceData, setMigrationSourceData] = useState(null);
+
   const [workerExpenses, setWorkerExpenses] = useState([]);
   const [factoryOverhead, setFactoryOverhead] = useState([]);
   const [pomaceRevenues, setPomaceRevenues] = useState([]);
@@ -264,7 +280,44 @@ function App() {
     oilSalePrice: 250
   });
 
-  const readUserData = async () => readData(user?.uid);
+  // LocalStorage güncelleme yardımcısı
+  const updateLocalData = (key, updatedList) => {
+    if (!user?.uid) return;
+    const userLocalKey = `safDamlaData_${user.uid}`;
+    try {
+      const currentRaw = localStorage.getItem(userLocalKey);
+      const current = currentRaw ? JSON.parse(currentRaw) : {};
+      current[key] = updatedList;
+      localStorage.setItem(userLocalKey, JSON.stringify(current));
+    } catch (e) {
+      console.warn("localStorage quota warning:", e);
+    }
+  };
+
+  const readUserData = async () => {
+    if (isMigrated && user?.uid) {
+      const userLocalKey = `safDamlaData_${user.uid}`;
+      const saved = localStorage.getItem(userLocalKey);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+      return {
+        customers,
+        transactions,
+        workerExpenses,
+        factoryOverhead,
+        pomaceRevenues,
+        tinPurchases,
+        plasticPurchases,
+        oilPurchases,
+        oilSales,
+        defaultPrices
+      };
+    }
+    return readData(user?.uid);
+  };
   const writeUserData = (data) => writeData(data, user?.uid, setSyncStatus);
 
   const migrateLegacyOfflineData = async (userId) => {
@@ -395,8 +448,9 @@ function App() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // 1. Instantly load from localStorage on startup (0ms delay)
     const userLocalKey = `safDamlaData_${user.uid}`;
+
+    // 1. Instantly load from localStorage on startup (0ms delay)
     const savedLocalData = localStorage.getItem(userLocalKey);
     if (savedLocalData) {
       try {
@@ -420,56 +474,92 @@ function App() {
     // 2. Perform legacy offline migration (if any legacy offlineData exists)
     migrateLegacyOfflineData(user.uid);
 
-    // 3. Set up native persistent real-time listener
-    console.log("Setting up real-time listener for user:", user.uid);
-    const docRef = doc(db, 'userData', user.uid);
+    let unsubscribe = null;
 
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+    // 3. Veritabanı durumu ve veri yükleme (Alt-Koleksiyon veya Eski Yapı)
+    const loadUserData = async () => {
+      try {
+        const migStatus = await checkMigrationStatus(user.uid);
 
-        // Keep local storage copy updated
-        localStorage.setItem(userLocalKey, JSON.stringify(data));
+        if (migStatus.isMigrated) {
+          setIsMigrated(true);
+          console.log("✅ Kullanıcı güvenli alt-koleksiyon mimarisinde.");
+          setSyncStatus('syncing');
 
-        setCustomers(data.customers || []);
-        setTransactions(data.transactions || []);
-        setWorkerExpenses(data.workerExpenses || []);
-        setFactoryOverhead(data.factoryOverhead || []);
-        setPomaceRevenues(data.pomaceRevenues || []);
-        setTinPurchases(data.tinPurchases || []);
-        setPlasticPurchases(data.plasticPurchases || []);
-        setOilPurchases(data.oilPurchases || []);
-        setOilSales(data.oilSales || []);
-        if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
-        setSyncStatus('synced');
-      } else {
-        // Doc doesn't exist yet, fall back to readData (migrating mock/localStorage fallback)
-        async function migrateData() {
-          const data = await readData(user.uid);
-          setCustomers(data.customers || []);
-          setTransactions(data.transactions || []);
-          setWorkerExpenses(data.workerExpenses || []);
-          setFactoryOverhead(data.factoryOverhead || []);
-          setPomaceRevenues(data.pomaceRevenues || []);
-          setTinPurchases(data.tinPurchases || []);
-          setPlasticPurchases(data.plasticPurchases || []);
-          setOilPurchases(data.oilPurchases || []);
-          setOilSales(data.oilSales || []);
-          if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
+          const fullData = await loadAllSubcollectionsData(user.uid);
+          setCustomers(fullData.customers || []);
+          setTransactions(fullData.transactions || []);
+          setWorkerExpenses(fullData.workerExpenses || []);
+          setFactoryOverhead(fullData.factoryOverhead || []);
+          setPomaceRevenues(fullData.pomaceRevenues || []);
+          setTinPurchases(fullData.tinPurchases || []);
+          setPlasticPurchases(fullData.plasticPurchases || []);
+          setOilPurchases(fullData.oilPurchases || []);
+          setOilSales(fullData.oilSales || []);
+          if (fullData.defaultPrices) setDefaultPrices(fullData.defaultPrices);
 
-          if (data.customers && data.customers.length > 0) {
-            // Background write
-            writeData(data, user.uid, setSyncStatus);
+          try {
+            localStorage.setItem(userLocalKey, JSON.stringify(fullData));
+          } catch (e) {
+            console.warn("localStorage quota warning:", e);
           }
-        }
-        migrateData();
-      }
-    }, (error) => {
-      console.error("Real-time listener error:", error);
-      setSyncStatus('offline');
-    });
+          setSyncStatus('synced');
+        } else {
+          setIsMigrated(false);
+          console.log("ℹ️ Kullanıcı eski tek-belge yapısında. Kaynak veri hazırlanıyor.");
 
-    return () => unsubscribe();
+          const legacyData = migStatus.legacyData || await readData(user.uid);
+          setMigrationSourceData(legacyData);
+          setCustomers(legacyData.customers || []);
+          setTransactions(legacyData.transactions || []);
+          setWorkerExpenses(legacyData.workerExpenses || []);
+          setFactoryOverhead(legacyData.factoryOverhead || []);
+          setPomaceRevenues(legacyData.pomaceRevenues || []);
+          setTinPurchases(legacyData.tinPurchases || []);
+          setPlasticPurchases(legacyData.plasticPurchases || []);
+          setOilPurchases(legacyData.oilPurchases || []);
+          setOilSales(legacyData.oilSales || []);
+          if (legacyData.defaultPrices) setDefaultPrices(legacyData.defaultPrices);
+
+          // Eski yapı dinleyicisi
+          const docRef = doc(db, 'userData', user.uid);
+          unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.isMigrated) {
+                setIsMigrated(true);
+                return;
+              }
+              try {
+                localStorage.setItem(userLocalKey, JSON.stringify(data));
+              } catch (e) {}
+              setCustomers(data.customers || []);
+              setTransactions(data.transactions || []);
+              setWorkerExpenses(data.workerExpenses || []);
+              setFactoryOverhead(data.factoryOverhead || []);
+              setPomaceRevenues(data.pomaceRevenues || []);
+              setTinPurchases(data.tinPurchases || []);
+              setPlasticPurchases(data.plasticPurchases || []);
+              setOilPurchases(data.oilPurchases || []);
+              setOilSales(data.oilSales || []);
+              if (data.defaultPrices) setDefaultPrices(data.defaultPrices);
+              setSyncStatus('synced');
+            }
+          }, (error) => {
+            console.error("Real-time listener error:", error);
+            setSyncStatus('offline');
+          });
+        }
+      } catch (err) {
+        console.error("Veri yükleme hatası:", err);
+      }
+    };
+
+    loadUserData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [user?.uid]);
 
   const showMessage = (msg, type) => {
@@ -505,9 +595,14 @@ function App() {
 
   const handleSaveDefaultPrices = async (newPrices) => {
     try {
-      const data = await readData(user?.uid);
-      data.defaultPrices = newPrices;
-      writeData(data, user?.uid, setSyncStatus);
+      if (isMigrated && user?.uid) {
+        await saveDefaultPricesSubcollection(user.uid, newPrices);
+        updateLocalData('defaultPrices', newPrices);
+      } else {
+        const data = await readData(user?.uid);
+        data.defaultPrices = newPrices;
+        writeData(data, user?.uid, setSyncStatus);
+      }
       setDefaultPrices(newPrices);
       showMessage('Varsayılan fiyatlar kaydedildi!', 'success');
     } catch (error) {
@@ -518,20 +613,30 @@ function App() {
 
   const handleSaveCustomer = async (customerData) => {
     try {
-      const data = await readUserData();
-      let customersList = data.customers || [];
+      const currentCustomers = [...customers];
+      let updatedCustomers;
+      let customerToSave = { ...customerData };
+
       if (customerData.id) {
-        customersList = customersList.map(c => c.id === customerData.id ? { ...c, ...customerData } : c);
+        updatedCustomers = currentCustomers.map(c => c.id === customerData.id ? { ...c, ...customerData } : c);
         showMessage('Müşteri güncellendi!', 'success');
       } else {
-        customerData.id = Date.now().toString();
-        customerData.createdAt = new Date().toISOString();
-        customersList.push(customerData);
+        customerToSave.id = Date.now().toString();
+        customerToSave.createdAt = new Date().toISOString();
+        updatedCustomers = [...currentCustomers, customerToSave];
         showMessage('Müşteri eklendi!', 'success');
       }
-      data.customers = customersList;
-      writeUserData(data);
-      setCustomers(customersList);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.CUSTOMERS, customerToSave);
+        updateLocalData('customers', updatedCustomers);
+      } else {
+        const data = await readUserData();
+        data.customers = updatedCustomers;
+        writeUserData(data);
+      }
+
+      setCustomers(updatedCustomers);
     } catch (error) {
       console.error('Error saving customer:', error);
       showMessage('Müşteri kaydedilirken hata oluştu!', 'error');
@@ -540,25 +645,22 @@ function App() {
 
   const handleSaveTransaction = async (transactionData) => {
     try {
-      const data = await readUserData();
-      let trans = data.transactions || [];
       let customerId = transactionData.customerId;
+      let newCustomer = null;
 
       if (!customerId) {
         const existingCustomer = customers.find(c => c.name.toLowerCase() === transactionData.customerName.toLowerCase());
         if (existingCustomer) {
           customerId = existingCustomer.id;
         } else {
-          const newCustomer = {
+          newCustomer = {
             id: Date.now().toString(),
             name: transactionData.customerName,
             phone: '',
             address: '',
             createdAt: new Date().toISOString()
           };
-          data.customers = [...(data.customers || []), newCustomer];
           customerId = newCustomer.id;
-          setCustomers(data.customers);
         }
       }
 
@@ -566,19 +668,41 @@ function App() {
         ...transactionData,
         customerId,
         customerName: transactionData.customerName,
-        date: transactionData.date.toISOString(),
+        date: transactionData.date instanceof Date ? transactionData.date.toISOString() : new Date(transactionData.date).toISOString(),
         id: transactionData.id || Date.now().toString()
       };
 
+      let updatedTransactions;
       if (transactionData.id) {
-        trans = trans.map(t => t.id === transactionData.id ? transactionToSave : t);
+        updatedTransactions = transactions.map(t => t.id === transactionData.id ? transactionToSave : t);
       } else {
-        trans.push(transactionToSave);
+        updatedTransactions = [...transactions, transactionToSave];
       }
-      data.transactions = trans;
 
-      writeUserData(data);
-      setTransactions(trans);
+      let updatedCustomers = [...customers];
+      if (newCustomer) {
+        updatedCustomers.push(newCustomer);
+      }
+
+      if (isMigrated && user?.uid) {
+        if (newCustomer) {
+          await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.CUSTOMERS, newCustomer);
+          setCustomers(updatedCustomers);
+          updateLocalData('customers', updatedCustomers);
+        }
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.TRANSACTIONS, transactionToSave);
+        updateLocalData('transactions', updatedTransactions);
+      } else {
+        const data = await readUserData();
+        data.transactions = updatedTransactions;
+        if (newCustomer) {
+          data.customers = updatedCustomers;
+          setCustomers(updatedCustomers);
+        }
+        writeUserData(data);
+      }
+
+      setTransactions(updatedTransactions);
       showMessage(transactionData.id ? 'İşlem güncellendi!' : 'İşlem eklendi!', 'success');
     } catch (error) {
       console.error('Error saving transaction:', error);
@@ -588,8 +712,6 @@ function App() {
 
   const handleCollectPayment = async (customerId, customerName, amount) => {
     try {
-      const data = await readUserData();
-      let trans = data.transactions || [];
       const paymentTransaction = {
         id: Date.now().toString(),
         customerId,
@@ -609,10 +731,19 @@ function App() {
         remainingBalance: -Number(amount),
         description: 'Ara Tahsilat'
       };
-      trans.push(paymentTransaction);
-      data.transactions = trans;
-      writeUserData(data);
-      setTransactions(trans);
+
+      const updatedTransactions = [...transactions, paymentTransaction];
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.TRANSACTIONS, paymentTransaction);
+        updateLocalData('transactions', updatedTransactions);
+      } else {
+        const data = await readUserData();
+        data.transactions = updatedTransactions;
+        writeUserData(data);
+      }
+
+      setTransactions(updatedTransactions);
       showMessage(`${formatNumber(amount, ' ₺')} tahsilat kaydedildi.`, 'success');
     } catch (error) {
       console.error('Error collecting payment:', error);
@@ -622,24 +753,31 @@ function App() {
 
   const handleSaveOilPurchase = async (purchaseData) => {
     try {
-      const data = await readUserData();
-      let purchases = data.oilPurchases || [];
       const normalizedPurchaseData = {
         ...purchaseData,
         date: new Date(purchaseData.date).toISOString()
       };
+      let updatedPurchases;
       if (purchaseData.id) {
-        purchases = purchases.map(p => p.id === purchaseData.id ? { ...p, ...normalizedPurchaseData } : p);
+        updatedPurchases = oilPurchases.map(p => p.id === purchaseData.id ? { ...p, ...normalizedPurchaseData } : p);
         showMessage('Zeytinyağı alımı güncellendi!', 'success');
       } else {
         normalizedPurchaseData.id = Date.now().toString();
         normalizedPurchaseData.createdAt = new Date().toISOString();
-        purchases.push(normalizedPurchaseData);
+        updatedPurchases = [...oilPurchases, normalizedPurchaseData];
         showMessage('Zeytinyağı alımı eklendi!', 'success');
       }
-      data.oilPurchases = purchases;
-      writeUserData(data);
-      setOilPurchases(purchases);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.OIL_PURCHASES, normalizedPurchaseData);
+        updateLocalData('oilPurchases', updatedPurchases);
+      } else {
+        const data = await readUserData();
+        data.oilPurchases = updatedPurchases;
+        writeUserData(data);
+      }
+
+      setOilPurchases(updatedPurchases);
     } catch (error) {
       console.error('Error saving oil purchase:', error);
       showMessage('Hata oluştu!', 'error');
@@ -648,24 +786,31 @@ function App() {
 
   const handleSaveOilSale = async (saleData) => {
     try {
-      const data = await readUserData();
-      let sales = data.oilSales || [];
       const normalizedSaleData = {
         ...saleData,
         date: new Date(saleData.date).toISOString()
       };
+      let updatedSales;
       if (saleData.id) {
-        sales = sales.map(s => s.id === saleData.id ? { ...s, ...normalizedSaleData } : s);
+        updatedSales = oilSales.map(s => s.id === saleData.id ? { ...s, ...normalizedSaleData } : s);
         showMessage('Zeytinyağı satışı güncellendi!', 'success');
       } else {
         normalizedSaleData.id = Date.now().toString();
         normalizedSaleData.createdAt = new Date().toISOString();
-        sales.push(normalizedSaleData);
+        updatedSales = [...oilSales, normalizedSaleData];
         showMessage('Zeytinyağı satışı eklendi!', 'success');
       }
-      data.oilSales = sales;
-      writeUserData(data);
-      setOilSales(sales);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.OIL_SALES, normalizedSaleData);
+        updateLocalData('oilSales', updatedSales);
+      } else {
+        const data = await readUserData();
+        data.oilSales = updatedSales;
+        writeUserData(data);
+      }
+
+      setOilSales(updatedSales);
     } catch (error) {
       console.error('Error saving oil sale:', error);
       showMessage('Hata oluştu!', 'error');
@@ -674,24 +819,31 @@ function App() {
 
   const handleSaveWorkerExpense = async (expenseData) => {
     try {
-      const data = await readUserData();
-      let expenses = data.workerExpenses || [];
       const normalizedExpenseData = {
         ...expenseData,
         date: new Date(expenseData.date).toISOString()
       };
+      let updatedExpenses;
       if (expenseData.id) {
-        expenses = expenses.map(e => e.id === expenseData.id ? { ...e, ...normalizedExpenseData } : e);
+        updatedExpenses = workerExpenses.map(e => e.id === expenseData.id ? { ...e, ...normalizedExpenseData } : e);
         showMessage('Harcama güncellendi!', 'success');
       } else {
         normalizedExpenseData.id = Date.now().toString();
         normalizedExpenseData.createdAt = new Date().toISOString();
-        expenses.push(normalizedExpenseData);
+        updatedExpenses = [...workerExpenses, normalizedExpenseData];
         showMessage('Harcama eklendi!', 'success');
       }
-      data.workerExpenses = expenses;
-      writeUserData(data);
-      setWorkerExpenses(expenses);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.WORKER_EXPENSES, normalizedExpenseData);
+        updateLocalData('workerExpenses', updatedExpenses);
+      } else {
+        const data = await readUserData();
+        data.workerExpenses = updatedExpenses;
+        writeUserData(data);
+      }
+
+      setWorkerExpenses(updatedExpenses);
     } catch (error) {
       console.error('Error saving worker expense:', error);
       showMessage('Hata oluştu!', 'error');
@@ -700,24 +852,31 @@ function App() {
 
   const handleSaveFactoryOverhead = async (overheadData) => {
     try {
-      const data = await readUserData();
-      let overhead = data.factoryOverhead || [];
       const normalizedOverheadData = {
         ...overheadData,
         date: new Date(overheadData.date).toISOString()
       };
+      let updatedOverhead;
       if (overheadData.id) {
-        overhead = overhead.map(e => e.id === overheadData.id ? { ...e, ...normalizedOverheadData } : e);
+        updatedOverhead = factoryOverhead.map(e => e.id === overheadData.id ? { ...e, ...normalizedOverheadData } : e);
         showMessage('Gider güncellendi!', 'success');
       } else {
         normalizedOverheadData.id = Date.now().toString();
         normalizedOverheadData.createdAt = new Date().toISOString();
-        overhead.push(normalizedOverheadData);
+        updatedOverhead = [...factoryOverhead, normalizedOverheadData];
         showMessage('Gider eklendi!', 'success');
       }
-      data.factoryOverhead = overhead;
-      writeUserData(data);
-      setFactoryOverhead(overhead);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.FACTORY_OVERHEAD, normalizedOverheadData);
+        updateLocalData('factoryOverhead', updatedOverhead);
+      } else {
+        const data = await readUserData();
+        data.factoryOverhead = updatedOverhead;
+        writeUserData(data);
+      }
+
+      setFactoryOverhead(updatedOverhead);
     } catch (error) {
       console.error('Error saving factory overhead:', error);
       showMessage('Hata oluştu!', 'error');
@@ -726,24 +885,31 @@ function App() {
 
   const handleSavePomaceRevenue = async (revenueData) => {
     try {
-      const data = await readUserData();
-      let revenues = data.pomaceRevenues || [];
       const normalizedRevenueData = {
         ...revenueData,
         date: new Date(revenueData.date).toISOString()
       };
+      let updatedRevenues;
       if (revenueData.id) {
-        revenues = revenues.map(e => e.id === revenueData.id ? { ...e, ...normalizedRevenueData } : e);
+        updatedRevenues = pomaceRevenues.map(e => e.id === revenueData.id ? { ...e, ...normalizedRevenueData } : e);
         showMessage('Gelir güncellendi!', 'success');
       } else {
         normalizedRevenueData.id = Date.now().toString();
         normalizedRevenueData.createdAt = new Date().toISOString();
-        revenues.push(normalizedRevenueData);
+        updatedRevenues = [...pomaceRevenues, normalizedRevenueData];
         showMessage('Gelir eklendi!', 'success');
       }
-      data.pomaceRevenues = revenues;
-      writeUserData(data);
-      setPomaceRevenues(revenues);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.POMACE_REVENUES, normalizedRevenueData);
+        updateLocalData('pomaceRevenues', updatedRevenues);
+      } else {
+        const data = await readUserData();
+        data.pomaceRevenues = updatedRevenues;
+        writeUserData(data);
+      }
+
+      setPomaceRevenues(updatedRevenues);
     } catch (error) {
       console.error('Error saving pomace revenue:', error);
       showMessage('Hata oluştu!', 'error');
@@ -752,24 +918,31 @@ function App() {
 
   const handleSaveTinPurchase = async (purchaseData) => {
     try {
-      const data = await readUserData();
-      let purchases = data.tinPurchases || [];
       const normalizedPurchaseData = {
         ...purchaseData,
         date: new Date(purchaseData.date).toISOString()
       };
+      let updatedPurchases;
       if (purchaseData.id) {
-        purchases = purchases.map(e => e.id === purchaseData.id ? { ...e, ...normalizedPurchaseData } : e);
+        updatedPurchases = tinPurchases.map(e => e.id === purchaseData.id ? { ...e, ...normalizedPurchaseData } : e);
         showMessage('Alım güncellendi!', 'success');
       } else {
         normalizedPurchaseData.id = Date.now().toString();
         normalizedPurchaseData.createdAt = new Date().toISOString();
-        purchases.push(normalizedPurchaseData);
+        updatedPurchases = [...tinPurchases, normalizedPurchaseData];
         showMessage('Alım eklendi!', 'success');
       }
-      data.tinPurchases = purchases;
-      writeUserData(data);
-      setTinPurchases(purchases);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.TIN_PURCHASES, normalizedPurchaseData);
+        updateLocalData('tinPurchases', updatedPurchases);
+      } else {
+        const data = await readUserData();
+        data.tinPurchases = updatedPurchases;
+        writeUserData(data);
+      }
+
+      setTinPurchases(updatedPurchases);
     } catch (error) {
       console.error('Error saving tin purchase:', error);
       showMessage('Hata oluştu!', 'error');
@@ -778,24 +951,31 @@ function App() {
 
   const handleSavePlasticPurchase = async (purchaseData) => {
     try {
-      const data = await readUserData();
-      let purchases = data.plasticPurchases || [];
       const normalizedPurchaseData = {
         ...purchaseData,
         date: new Date(purchaseData.date).toISOString()
       };
+      let updatedPurchases;
       if (purchaseData.id) {
-        purchases = purchases.map(e => e.id === purchaseData.id ? { ...e, ...normalizedPurchaseData } : e);
+        updatedPurchases = plasticPurchases.map(e => e.id === purchaseData.id ? { ...e, ...normalizedPurchaseData } : e);
         showMessage('Alım güncellendi!', 'success');
       } else {
         normalizedPurchaseData.id = Date.now().toString();
         normalizedPurchaseData.createdAt = new Date().toISOString();
-        purchases.push(normalizedPurchaseData);
+        updatedPurchases = [...plasticPurchases, normalizedPurchaseData];
         showMessage('Alım eklendi!', 'success');
       }
-      data.plasticPurchases = purchases;
-      writeUserData(data);
-      setPlasticPurchases(purchases);
+
+      if (isMigrated && user?.uid) {
+        await saveSubcollectionItem(user.uid, SUBCOLLECTIONS.PLASTIC_PURCHASES, normalizedPurchaseData);
+        updateLocalData('plasticPurchases', updatedPurchases);
+      } else {
+        const data = await readUserData();
+        data.plasticPurchases = updatedPurchases;
+        writeUserData(data);
+      }
+
+      setPlasticPurchases(updatedPurchases);
     } catch (error) {
       console.error('Error saving plastic purchase:', error);
       showMessage('Hata oluştu!', 'error');
@@ -804,23 +984,55 @@ function App() {
 
   const handleDeleteItem = async (collectionName, id) => {
     try {
-      const data = await readUserData();
-      let collection = data[collectionName] || [];
-      collection = collection.filter(item => item.id !== id);
-      data[collectionName] = collection;
-      writeUserData(data);
+      if (isMigrated && user?.uid) {
+        await deleteSubcollectionItem(user.uid, collectionName, id);
+      }
 
+      let collection;
       switch (collectionName) {
-        case 'transactions': setTransactions(collection); break;
-        case 'workerExpenses': setWorkerExpenses(collection); break;
-        case 'factoryOverhead': setFactoryOverhead(collection); break;
-        case 'pomaceRevenues': setPomaceRevenues(collection); break;
-        case 'tinPurchases': setTinPurchases(collection); break;
-        case 'plasticPurchases': setPlasticPurchases(collection); break;
-        case 'oilPurchases': setOilPurchases(collection); break;
-        case 'oilSales': setOilSales(collection); break;
+        case 'transactions':
+          collection = transactions.filter(item => item.id !== id);
+          setTransactions(collection);
+          break;
+        case 'workerExpenses':
+          collection = workerExpenses.filter(item => item.id !== id);
+          setWorkerExpenses(collection);
+          break;
+        case 'factoryOverhead':
+          collection = factoryOverhead.filter(item => item.id !== id);
+          setFactoryOverhead(collection);
+          break;
+        case 'pomaceRevenues':
+          collection = pomaceRevenues.filter(item => item.id !== id);
+          setPomaceRevenues(collection);
+          break;
+        case 'tinPurchases':
+          collection = tinPurchases.filter(item => item.id !== id);
+          setTinPurchases(collection);
+          break;
+        case 'plasticPurchases':
+          collection = plasticPurchases.filter(item => item.id !== id);
+          setPlasticPurchases(collection);
+          break;
+        case 'oilPurchases':
+          collection = oilPurchases.filter(item => item.id !== id);
+          setOilPurchases(collection);
+          break;
+        case 'oilSales':
+          collection = oilSales.filter(item => item.id !== id);
+          setOilSales(collection);
+          break;
         default: break;
       }
+
+      if (isMigrated && user?.uid) {
+        updateLocalData(collectionName, collection);
+      } else {
+        const data = await readUserData();
+        data[collectionName] = collection;
+        writeUserData(data);
+      }
+
       showMessage('Kayıt silindi.', 'success');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -830,16 +1042,26 @@ function App() {
 
   const handleDeleteSingleCustomer = async (customerId) => {
     try {
-      const data = await readUserData();
-      let customersList = data.customers || [];
-      let trans = data.transactions || [];
-      customersList = customersList.filter(c => c.id !== customerId);
-      trans = trans.filter(t => t.customerId !== customerId);
-      data.customers = customersList;
-      data.transactions = trans;
-      writeUserData(data);
-      setCustomers(customersList);
-      setTransactions(trans);
+      const updatedCustomers = customers.filter(c => c.id !== customerId);
+      const updatedTransactions = transactions.filter(t => t.customerId !== customerId);
+
+      if (isMigrated && user?.uid) {
+        await deleteSubcollectionItem(user.uid, SUBCOLLECTIONS.CUSTOMERS, customerId);
+        const relatedTrans = transactions.filter(t => t.customerId === customerId);
+        for (const t of relatedTrans) {
+          await deleteSubcollectionItem(user.uid, SUBCOLLECTIONS.TRANSACTIONS, t.id);
+        }
+        updateLocalData('customers', updatedCustomers);
+        updateLocalData('transactions', updatedTransactions);
+      } else {
+        const data = await readUserData();
+        data.customers = updatedCustomers;
+        data.transactions = updatedTransactions;
+        writeUserData(data);
+      }
+
+      setCustomers(updatedCustomers);
+      setTransactions(updatedTransactions);
       showMessage('Müşteri ve işlemleri silindi.', 'success');
     } catch (error) {
       console.error('Error deleting customer:', error);
@@ -960,6 +1182,26 @@ function App() {
           </div>
         </nav>
       </header>
+
+      {/* Migrasyon Uyarısı Banner */}
+      {!isMigrated && (
+        <div className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white p-3 shadow-md border-b border-amber-600">
+          <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center space-x-2 text-xs sm:text-sm font-medium">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 animate-pulse text-amber-100" />
+              <span>
+                ⚠️ <strong>Önemli Güncelleme:</strong> Veritabanınız 1 MB tek-belge limitine ulaştı. Veri kaybını kalıcı olarak önlemek için güvenli aktarımı başlatın.
+              </span>
+            </div>
+            <button
+              onClick={() => setShowMigrationModal(true)}
+              className="px-4 py-1.5 bg-white text-amber-700 hover:bg-amber-50 font-bold rounded-lg text-xs shadow transition-all hover:scale-105 whitespace-nowrap flex items-center gap-1.5"
+            >
+              🚀 Veritabanını Güvenle Aktar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Offline banner */}
       {!isOnline && (
@@ -1182,6 +1424,46 @@ function App() {
           onConfirm={confirmDelete}
           onCancel={() => setShowConfirmationModal(false)}
           isLoading={isDeleting}
+        />
+      )}
+
+      {/* Migrasyon Modalı */}
+      {showMigrationModal && user && (
+        <MigrationModal
+          userId={user.uid}
+          sourceData={migrationSourceData || {
+            customers,
+            transactions,
+            workerExpenses,
+            factoryOverhead,
+            pomaceRevenues,
+            tinPurchases,
+            plasticPurchases,
+            oilPurchases,
+            oilSales,
+            defaultPrices
+          }}
+          onMigrationComplete={async () => {
+            setIsMigrated(true);
+            setShowMigrationModal(false);
+            showMessage('Verileriniz yeni güvenli yapıya aktarıldı!', 'success');
+            try {
+              const fullData = await loadAllSubcollectionsData(user.uid);
+              setCustomers(fullData.customers || []);
+              setTransactions(fullData.transactions || []);
+              setWorkerExpenses(fullData.workerExpenses || []);
+              setFactoryOverhead(fullData.factoryOverhead || []);
+              setPomaceRevenues(fullData.pomaceRevenues || []);
+              setTinPurchases(fullData.tinPurchases || []);
+              setPlasticPurchases(fullData.plasticPurchases || []);
+              setOilPurchases(fullData.oilPurchases || []);
+              setOilSales(fullData.oilSales || []);
+              if (fullData.defaultPrices) setDefaultPrices(fullData.defaultPrices);
+            } catch (err) {
+              console.error('Yeniden yükleme hatası:', err);
+            }
+          }}
+          onClose={() => setShowMigrationModal(false)}
         />
       )}
 
