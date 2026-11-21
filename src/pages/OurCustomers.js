@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Info } from 'lucide-react';
 import PaymentCollectionModal from '../components/PaymentCollectionModal';
 import { formatNumber } from '../components/utils';
@@ -11,10 +11,78 @@ const OurCustomers = ({
   onCollectPayment, 
   onDeleteSelected 
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [balanceFilter, setBalanceFilter] = useState('all'); // 'all', 'debtors', 'non-debtors'
+  // Geri dönüldüğünde önceki filtre ve aramayı hatırla
+  const [searchTerm, setSearchTerm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('ourCustomers_scrollState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.searchTerm || '';
+      }
+    } catch (e) {}
+    return '';
+  });
+
+  const [balanceFilter, setBalanceFilter] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('ourCustomers_scrollState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.balanceFilter || 'all';
+      }
+    } catch (e) {}
+    return 'all';
+  });
+
   const [paymentModalState, setPaymentModalState] = useState({ isOpen: false, customer: null });
   const [selectedCustomers, setSelectedCustomers] = useState([]);
+
+  // Geri dönüldüğünde son bakılan müşterinin konumuna otomatik odaklan
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('ourCustomers_scrollState');
+      if (saved) {
+        const { scrollY, customerId } = JSON.parse(saved);
+        setTimeout(() => {
+          if (customerId) {
+            const rowElement = document.getElementById(`customer-row-${customerId}`) || 
+                               document.getElementById(`customer-card-${customerId}`);
+            if (rowElement) {
+              rowElement.scrollIntoView({ block: 'center', behavior: 'auto' });
+              // Gözle fark edilmesi için nazik bir vurgu
+              rowElement.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+              setTimeout(() => {
+                rowElement.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+              }, 2500);
+            } else if (scrollY) {
+              window.scrollTo({ top: scrollY, behavior: 'auto' });
+            }
+          } else if (scrollY) {
+            window.scrollTo({ top: scrollY, behavior: 'auto' });
+          }
+          sessionStorage.removeItem('ourCustomers_scrollState');
+        }, 120);
+      }
+    } catch (e) {
+      console.error("Scroll restore error:", e);
+    }
+  }, []);
+
+  // Müşteri detayına tıklandığında mevcut konumu hafızaya al
+  const handleViewDetails = (customer) => {
+    try {
+      const stateToSave = {
+        scrollY: window.scrollY || window.pageYOffset || document.documentElement.scrollTop,
+        customerId: customer.id,
+        searchTerm,
+        balanceFilter
+      };
+      sessionStorage.setItem('ourCustomers_scrollState', JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error("Scroll save error:", e);
+    }
+    navigateToCustomerDetails('customerDetails', customer);
+  };
 
   const customerSummaries = customers.map(customer => {
       const customerTransactions = transactions.filter(t => t.customerId === customer.id);
@@ -139,7 +207,11 @@ const OurCustomers = ({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredCustomers.map(customer => (
-                  <tr key={customer.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={customer.id} 
+                    id={`customer-row-${customer.id}`} 
+                    className="hover:bg-gray-50 transition-colors duration-500 rounded-lg"
+                  >
                     <td className="px-2 py-4 text-center">
                       <input 
                         type="checkbox" 
@@ -149,7 +221,12 @@ const OurCustomers = ({
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <button onClick={() => navigateToCustomerDetails('customerDetails', customer)} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold transition-colors hover:bg-blue-200">{customer.name}</button>
+                      <button 
+                        onClick={() => handleViewDetails(customer)} 
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold transition-colors hover:bg-blue-200"
+                      >
+                        {customer.name}
+                      </button>
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${customer.remainingBalance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {formatNumber(customer.remainingBalance, ' ₺')}
@@ -157,7 +234,11 @@ const OurCustomers = ({
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button onClick={() => setPaymentModalState({ isOpen: true, customer: customer })} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm mr-2 min-h-[36px]" title="Tahsilat Yap">Tahsilat Yap</button>
                       <button onClick={() => onOpenNewTransactionModal({ customerId: customer.id, customerName: customer.name })} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm mr-2 min-h-[36px]" title="İşlem Ekle">İşlem Ekle</button>
-                      <button onClick={() => navigateToCustomerDetails('customerDetails', customer)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors inline-flex items-center justify-center min-h-[36px]" title="Müşteri Detaylarını Görüntüle">
+                      <button 
+                        onClick={() => handleViewDetails(customer)} 
+                        className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors inline-flex items-center justify-center min-h-[36px]" 
+                        title="Müşteri Detaylarını Görüntüle"
+                      >
                         <Info className="w-5 h-5" />
                       </button>
                     </td>
@@ -170,7 +251,11 @@ const OurCustomers = ({
           {/* MOBİL GÖRÜNÜMÜ */}
           <div className="block md:hidden space-y-4">
             {filteredCustomers.map(customer => (
-              <div key={customer.id} className="border rounded-xl shadow-md p-4 space-y-3 bg-white">
+              <div 
+                key={customer.id} 
+                id={`customer-card-${customer.id}`} 
+                className="border rounded-xl shadow-md p-4 space-y-3 bg-white transition-colors duration-500"
+              >
                 <div className="flex justify-between items-center border-b pb-2">
                   <div className="flex items-center space-x-2">
                     <input 
@@ -180,7 +265,7 @@ const OurCustomers = ({
                       className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
                     />
                     <button 
-                      onClick={() => navigateToCustomerDetails('customerDetails', customer)} 
+                      onClick={() => handleViewDetails(customer)} 
                       className="px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-sm font-bold border border-blue-200 min-h-[32px]"
                     >
                       {customer.name}
@@ -205,7 +290,7 @@ const OurCustomers = ({
                     İşlem Ekle
                   </button>
                   <button 
-                    onClick={() => navigateToCustomerDetails('customerDetails', customer)} 
+                    onClick={() => handleViewDetails(customer)} 
                     className="w-full sm:w-auto flex items-center justify-center gap-1 px-4 py-2.5 text-xs bg-gray-100 text-gray-700 border hover:bg-gray-200 rounded-lg font-semibold min-h-[40px]"
                   >
                     <Info className="w-4 h-4" />

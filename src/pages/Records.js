@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Plus, Edit, Trash2, Printer } from 'lucide-react';
 import { formatNumber, formatOilRatioDisplay, printTransactionReceipt } from '../components/utils';
 
@@ -10,10 +10,87 @@ const Records = ({
   onDeleteTransaction, 
   navigateToCustomerDetails 
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Geri dönüldüğünde önceki filtre ve aramayı hatırla
+  const [searchTerm, setSearchTerm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('records_scrollState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.searchTerm || '';
+      }
+    } catch (e) {}
+    return '';
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('records_scrollState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.startDate || '';
+      }
+    } catch (e) {}
+    return '';
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('records_scrollState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.endDate || '';
+      }
+    } catch (e) {}
+    return '';
+  });
+
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
+
+  // Geri dönüldüğünde son bakılan müşterinin konumuna otomatik odaklan
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('records_scrollState');
+      if (saved) {
+        const { scrollY, customerId } = JSON.parse(saved);
+        setTimeout(() => {
+          if (customerId) {
+            const rowElement = document.getElementById(`records-row-${customerId}`) || 
+                               document.getElementById(`records-card-${customerId}`);
+            if (rowElement) {
+              rowElement.scrollIntoView({ block: 'center', behavior: 'auto' });
+              rowElement.classList.add('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+              setTimeout(() => {
+                rowElement.classList.remove('bg-emerald-100', 'ring-2', 'ring-emerald-500');
+              }, 2500);
+            } else if (scrollY) {
+              window.scrollTo({ top: scrollY, behavior: 'auto' });
+            }
+          } else if (scrollY) {
+            window.scrollTo({ top: scrollY, behavior: 'auto' });
+          }
+          sessionStorage.removeItem('records_scrollState');
+        }, 120);
+      }
+    } catch (e) {
+      console.error("Records scroll restore error:", e);
+    }
+  }, []);
+
+  const handleViewDetails = (customer) => {
+    try {
+      const stateToSave = {
+        scrollY: window.scrollY || window.pageYOffset || document.documentElement.scrollTop,
+        customerId: customer.id,
+        searchTerm,
+        startDate,
+        endDate
+      };
+      sessionStorage.setItem('records_scrollState', JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error("Records scroll save error:", e);
+    }
+    navigateToCustomerDetails('customerDetails', customer);
+  };
 
   const customerSummary = customers.map(customer => {
     const customerTransactions = transactions.filter(t => t.customerId === customer.id);
@@ -157,10 +234,13 @@ const Records = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredCustomers.map(customer => (
                     <React.Fragment key={customer.id}>
-                      <tr className="hover:bg-gray-50">
+                      <tr 
+                        id={`records-row-${customer.id}`} 
+                        className="hover:bg-gray-50 transition-colors duration-500 rounded-lg"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button 
-                            onClick={() => navigateToCustomerDetails('customerDetails', customer)} 
+                            onClick={() => handleViewDetails(customer)} 
                             className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold transition-colors hover:bg-blue-200"
                           >
                             {customer.name}
@@ -180,7 +260,13 @@ const Records = ({
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button onClick={() => onOpenNewTransactionModal({ customerId: customer.id, customerName: customer.name })} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-md hover:bg-emerald-700 shadow-sm mr-2 min-h-[30px]">İşlem Ekle</button>
-                          <button onClick={() => navigateToCustomerDetails('customerDetails', customer)} className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors"><Edit className="w-5 h-5" /></button>
+                          <button 
+                            onClick={() => handleViewDetails(customer)} 
+                            className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 hover:text-gray-800 transition-colors" 
+                            title="Müşteri Detaylarını Görüntüle"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
                         </td>
                       </tr>
                       {expandedCustomerId === customer.id && customer.transactions.length > 0 && (
@@ -235,7 +321,11 @@ const Records = ({
             {/* MOBİL GÖRÜNÜMÜ */}
             <div className="block md:hidden space-y-4">
               {filteredCustomers.map(customer => (
-                <div key={customer.id} className="bg-white p-4 rounded-lg border shadow-sm space-y-3">
+                <div 
+                  key={customer.id} 
+                  id={`records-card-${customer.id}`} 
+                  className="bg-white p-4 rounded-lg border shadow-sm space-y-3 transition-colors duration-500"
+                >
                   <div className="flex justify-between items-start border-b pb-2">
                     <div>
                       <h3 className="font-bold text-gray-800 text-base">{customer.name}</h3>
@@ -253,7 +343,7 @@ const Records = ({
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     <button onClick={() => onOpenNewTransactionModal({ customerId: customer.id, customerName: customer.name })} className="flex-1 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 min-h-[36px]">İşlem Ekle</button>
-                    <button onClick={() => navigateToCustomerDetails('customerDetails', customer)} className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded hover:bg-gray-300 min-h-[36px]">Detay</button>
+                    <button onClick={() => handleViewDetails(customer)} className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded hover:bg-gray-300 min-h-[36px]">Detay</button>
                     <button onClick={() => setExpandedCustomerId(expandedCustomerId === customer.id ? null : customer.id)} className="px-3 py-2 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 min-h-[36px]">
                       {expandedCustomerId === customer.id ? 'Gizle' : 'İşlemler'}
                     </button>
